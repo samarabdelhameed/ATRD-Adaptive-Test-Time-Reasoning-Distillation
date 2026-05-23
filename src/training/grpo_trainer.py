@@ -1,10 +1,3 @@
-"""
-GRPO Trainer Wrapper
-
-Group Relative Policy Optimization training pipeline
-with PRM-guided reward signals for reasoning improvement.
-"""
-
 import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -13,15 +6,6 @@ import torch
 
 
 class GRPOTrainerWrapper:
-    """Wrapper for TRL GRPOTrainer with PRM-guided rewards.
-
-    Attributes:
-        model: Base model with LoRA adapter (post-SFT).
-        tokenizer: Model tokenizer.
-        grpo_config: GRPO-specific training parameters.
-        competition_config: Competition parameters.
-    """
-
     def __init__(
         self,
         model: Any,
@@ -46,20 +30,6 @@ class GRPOTrainerWrapper:
         answer_key: str = "answer",
         tolerance: Optional[float] = None,
     ) -> Callable:
-        """Create a reward function for GRPO training.
-
-        The reward function scores model outputs based on:
-        1. Answer correctness (primary signal)
-        2. Reasoning structure quality (secondary signal)
-        3. Format compliance (\\boxed{} format)
-
-        Args:
-            answer_key: Key for ground truth answer in problem dict.
-            tolerance: Numerical tolerance for answer matching.
-
-        Returns:
-            Callable reward function.
-        """
         if tolerance is None:
             tolerance = self.competition_config.get("numerical_tolerance", 0.01)
 
@@ -67,30 +37,24 @@ class GRPOTrainerWrapper:
             completions: List[str],
             ground_truth: Optional[str] = None,
         ) -> List[float]:
-            """Score a batch of completions.
-
-            Args:
-                completions: List of model-generated completions.
-                ground_truth: Expected answer.
-
-            Returns:
-                List of reward scores.
-            """
             rewards = []
             for completion in completions:
                 score = 0.0
 
-                # Format compliance reward
                 if "\\boxed{" in completion:
                     score += 0.2
+                if "<<thinking>>" in completion and "</thinking>>" in completion:
+                    score += 0.2
 
-                # Answer correctness reward
                 if ground_truth:
                     extracted = _extract_boxed_answer(completion)
                     if _check_answer(extracted, ground_truth, tolerance):
                         score += 0.8
 
-                rewards.append(score)
+                if _detect_redundancy(completion):
+                    score -= 0.3
+
+                rewards.append(max(-1.0, min(1.0, score)))
             return rewards
 
         return reward_fn
@@ -101,16 +65,6 @@ class GRPOTrainerWrapper:
         reward_function: Callable,
         eval_dataset: Optional[Any] = None,
     ) -> Any:
-        """Run GRPO training loop.
-
-        Args:
-            train_dataset: Training dataset with prompts.
-            reward_function: Reward scoring function.
-            eval_dataset: Optional evaluation dataset.
-
-        Returns:
-            Training result object.
-        """
         from trl import GRPOConfig, GRPOTrainer
 
         config = GRPOConfig(
@@ -140,18 +94,10 @@ class GRPOTrainerWrapper:
 
         print("Starting GRPO training...")
         result = trainer.train()
-        print(f"GRPO training complete.")
+        print("GRPO training complete.")
         return result
 
     def save_adapter(self, path: Optional[str] = None) -> Path:
-        """Save the LoRA adapter weights after GRPO training.
-
-        Args:
-            path: Output path.
-
-        Returns:
-            Path to saved adapter.
-        """
         save_path = Path(path) if path else self.output_dir / "final_adapter"
         self.model.save_pretrained(str(save_path))
         self.tokenizer.save_pretrained(str(save_path))
@@ -159,15 +105,25 @@ class GRPOTrainerWrapper:
         return save_path
 
 
+class KLMonitor:
+    def __init__(self, ref_model: Any, threshold: float = 0.05):
+        self.ref_model = ref_model
+        self.threshold = threshold
+        self.history: List[float] = []
+
+    def log_kl(self, current_model: Any, batch: Any) -> float:
+        kl = _compute_kl(current_model, self.ref_model, batch)
+        self.history.append(kl)
+
+        if kl > self.threshold:
+            print(f"WARNING: KL={kl:.4f} exceeds threshold={self.threshold}")
+        if kl > 0.1:
+            raise RuntimeError(f"KL divergence too high ({kl:.4f}). Stopping training.")
+
+        return kl
+
+
 def _extract_boxed_answer(text: str) -> str:
-    """Extract answer from \\boxed{} format.
-
-    Args:
-        text: Model output text.
-
-    Returns:
-        Extracted answer string, or empty string if not found.
-    """
     import re
 
     pattern = r"\\boxed\{([^}]*)\}"
@@ -176,17 +132,36 @@ def _extract_boxed_answer(text: str) -> str:
 
 
 def _check_answer(predicted: str, expected: str, tolerance: float = 0.01) -> bool:
-    """Check if predicted answer matches expected within tolerance.
-
-    Args:
-        predicted: Predicted answer string.
-        expected: Expected answer string.
-        tolerance: Numerical tolerance.
-
-    Returns:
-        True if answers match.
-    """
     try:
         return abs(float(predicted) - float(expected)) <= tolerance
     except (ValueError, TypeError):
         return predicted.strip() == expected.strip()
+
+
+def _detect_redundancy(text: str) -> bool:
+    lines = [l for l in text.split("\n") if l.strip()]
+    if len(lines) < 3:
+        return False
+    repeat_count = 0
+    for i in range(2, len(lines)):
+        if lines[i].strip() == lines[i - 2].strip():
+            repeat_count += 1
+    return repeat_count >= 2
+
+
+def _compute_kl(current_model: Any, ref_model: Any, batch: Any) -> float:
+    with torch.no_grad():
+        curr_logits = current_model(**batch).logits
+        ref_logits = ref_model(**batch).logits
+    curr_probs = torch.nn.functional.log_softmax(curr_logits, dim=-1)
+    ref_probs = torch.nn.functional.softmax(ref_logits, dim=-1)
+    kl = torch.sum(ref_probs * (torch.log(ref_probs + 1e-10) - curr_probs), dim=-1).mean().item()
+    return kl
+
+
+def verify_monotonic_reward(reward_history: List[float], window: int = 10) -> bool:
+    if len(reward_history) < window * 2:
+        return True
+    recent = reward_history[-window:]
+    early = reward_history[-window * 2 : -window]
+    return sum(recent) / len(recent) > sum(early) / len(early)

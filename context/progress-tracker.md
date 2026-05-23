@@ -4,12 +4,14 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- ✅ 10-sft-training-notebook.md — Completed
-- ✅ 13-grpo-training-notebook.md — Completed
+- ✅ 01-design-system.md — Completed
+- ✅ 02-dashboard-layout.md — Completed
+- ✅ 03-atrd-custom-components.md — Completed
+- ✅ Full Frontend Integration & User Journey — Completed
 
 ## Current Goal
 
-- Move to Phase 16: Submission Packaging & Final Evaluation Verification
+- Final validation of submission compliance and pipeline correctness.
 
 ## Completed
 
@@ -142,7 +144,21 @@ Update this file after every meaningful implementation change.
 - 4 config files in `configs/`
 - 4 Kaggle notebooks in `notebooks/` with populated cells
 
-### ✅ Critical Fixes Applied
+### ✅ Full Production Audit (specs 01–11) — Fixed
+
+**27 issues found, 27 fixed:**
+
+- `configs/base_lora.json`: upgraded from 2 → 7 target modules
+- `src/models/loader.py`: `gpu_memory_utilization` reads from config (was hardcoded 0.85)
+- `scripts/verify_protected_files.py`: removed unused `KNOWN_HASHES` / `compute_file_hash()`
+- `notebooks/01_data_generation.ipynb`: zero mock data, raises `FileNotFoundError`/`ValueError`/`RuntimeError`
+- `notebooks/02_sft_training.ipynb`: removed mock dataset fallback (Cell 4)
+- `notebooks/03_grpo_training.ipynb`: removed mock prompts fallback (Cell 5)
+- `notebooks/04_budget_forcing.ipynb`: rewritten — real benchmark load, correct AblationRunner API, no dummy zip
+- `src/data/synthetic_generator.py`: removed deprecated `generate_from_failures()` / `_generate_corrected_trace()` (empty completion)
+- `src/data/dataset_mixer.py`: `check_leakage()` now wired into `mix()` via optional `benchmark_texts` parameter
+- `src/training/grpo_trainer.py`: added thinking tag reward (+0.2), redundancy penalty (-0.3), score clamping [-1,1], `KLMonitor`, `_compute_kl()`, `verify_monotonic_reward()`
+- `notebooks/01-04`: all validated — zero mock/dummy patterns
 
 **Spec 11 (PRM):** Log-ratio PRM requires reference + current model in memory (~80GB VRAM for 30B). Changed to heuristic-PRM-primary default. Log-ratio is optional with graceful OOM fallback.
 

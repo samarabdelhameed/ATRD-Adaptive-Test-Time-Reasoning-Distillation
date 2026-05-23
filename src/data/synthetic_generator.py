@@ -376,56 +376,6 @@ class SyntheticGenerator:
 
         return min(1.0, score)
 
-    def generate_from_failures(
-        self,
-        problems: List[Dict[str, Any]],
-        baseline_responses: List[Dict[str, Any]],
-        teacher_model: Optional[Any] = None,
-    ) -> List[Dict[str, str]]:
-        """Legacy method: generate synthetic examples from baseline failures.
-
-        Deprecated: Use generate_per_failure_mode() instead.
-        """
-        failures = self._extract_failures(problems, baseline_responses)
-        synthetic_data = []
-        for failure in failures:
-            example = self._generate_corrected_trace(failure, teacher_model)
-            if example is not None:
-                synthetic_data.append(example)
-        return synthetic_data
-
-    def _extract_failures(
-        self,
-        problems: List[Dict[str, Any]],
-        responses: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
-        """Identify problems where the baseline model failed."""
-        failures = []
-        for prob, resp in zip(problems, responses):
-            if not self._check_answer(prob.get("answer", ""), resp.get("answer", "")):
-                failures.append({
-                    "problem": prob,
-                    "wrong_response": resp,
-                    "failure_type": self._classify_failure(resp),
-                })
-        return failures
-
-    def _generate_corrected_trace(
-        self,
-        failure: Dict[str, Any],
-        teacher_model: Optional[Any] = None,
-    ) -> Optional[Dict[str, str]]:
-        """Generate a corrected reasoning trace for a failure case."""
-        problem = failure["problem"]
-        return {
-            "prompt": problem.get("question", ""),
-            "completion": "",
-            "metadata": {
-                "failure_type": failure["failure_type"],
-                "source": "synthetic_correction",
-            },
-        }
-
     def _check_answer(self, expected: str, predicted: str) -> bool:
         """Check if predicted answer matches expected within tolerance."""
         tolerance = self.config.get("numerical_tolerance", 0.01)

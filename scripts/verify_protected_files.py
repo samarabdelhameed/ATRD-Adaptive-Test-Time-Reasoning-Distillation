@@ -13,20 +13,14 @@ Usage:
     Or manually: python scripts/verify_protected_files.py
 """
 
-import hashlib
-import json
 import subprocess
 import sys
-from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 # Files that must NEVER be modified after initial commit
 PROTECTED_FILES = [
     "configs/competition_params.json",
 ]
-
-# Known-good hashes (updated on initial commit)
-KNOWN_HASHES: Dict[str, str] = {}
 
 
 def get_staged_files() -> List[str]:
@@ -44,19 +38,6 @@ def get_staged_files() -> List[str]:
         return [f.strip() for f in result.stdout.strip().split("\n") if f.strip()]
     except Exception:
         return []
-
-
-def compute_file_hash(filepath: str) -> str:
-    """Compute SHA-256 hash of a file.
-
-    Args:
-        filepath: Path to file.
-
-    Returns:
-        Hex digest of file hash.
-    """
-    with open(filepath, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
 
 
 def verify() -> bool:

@@ -64,15 +64,25 @@ def load_model_with_cleanup(
     return model
 
 
-def setup_blackwell_optimizations() -> None:
+def setup_blackwell_optimizations(memory_fraction: float = 0.85) -> None:
     """Configure CUDA for RTX PRO 6000 Blackwell GPU.
 
     Enables TF32 matmul if compute capability >= 10.x
-    and sets memory fraction to 85% per competition params.
+    and sets memory fraction per competition params.
+
+    Args:
+        memory_fraction: GPU memory fraction (0-1). Reads from
+            configs/competition_params.json if available.
     """
     if not torch.cuda.is_available():
         print("CUDA not available, skipping Blackwell optimizations")
         return
+
+    config_path = Path("configs/competition_params.json")
+    if config_path.exists():
+        with open(config_path) as f:
+            cfg = json.load(f)
+        memory_fraction = cfg.get("gpu_memory_utilization", memory_fraction)
 
     device = torch.cuda.current_device()
     props = torch.cuda.get_device_properties(device)
@@ -85,8 +95,8 @@ def setup_blackwell_optimizations() -> None:
         torch.backends.cudnn.allow_tf32 = True
         print("Blackwell TF32 optimizations enabled")
 
-    torch.cuda.set_per_process_memory_fraction(0.85)
-    print("Memory fraction set to 85%")
+    torch.cuda.set_per_process_memory_fraction(memory_fraction)
+    print(f"Memory fraction set to {memory_fraction:.2f}")
 
 
 class ModelLoader:

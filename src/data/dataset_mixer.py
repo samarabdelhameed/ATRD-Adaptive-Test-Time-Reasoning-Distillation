@@ -41,6 +41,7 @@ class DatasetMixer:
         code_reasoning: List[Dict[str, Any]],
         max_total: Optional[int] = None,
         failure_mode_ratios: Optional[Dict[str, float]] = None,
+        benchmark_texts: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Mix datasets preserving stratified failure mode distribution.
 
@@ -51,6 +52,7 @@ class DatasetMixer:
             max_total: Maximum total examples in mixed dataset.
             failure_mode_ratios: Dict mapping failure_mode_tag to target
                 ratio within the synthetic portion. If None, uses equal ratios.
+            benchmark_texts: Optional benchmark texts for n-gram leakage check.
 
         Returns:
             Mixed and shuffled dataset with _source metadata.
@@ -100,6 +102,12 @@ class DatasetMixer:
                 f"  WARNING: Reasoning ratio {actual_ratio:.2f} "
                 f"outside target range [{REASONING_RATIO_LOWER}, {REASONING_RATIO_UPPER}]"
             )
+
+        if benchmark_texts:
+            train_texts = [str(ex.get("question", "") or "") for ex in mixed]
+            overlap = check_leakage(train_texts, benchmark_texts, n=5)
+            if overlap > 0:
+                print(f"  WARNING: {overlap} leaked n-grams detected in mixed dataset")
 
         return mixed
 
