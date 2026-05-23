@@ -4,67 +4,60 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- ✅ ALL PHASES COMPLETE — Project is production-ready
+- 🔄 Implementing 03-atrd-custom-components.md
 
 ## Current Goal
 
-- Project compiles and runs with zero errors
+- Complete 03-atrd-custom-components.md implementation (verify exit gate → mark complete → move to 04)
 
 ## Completed
 
-### ✅ Phase 1: Design System & Frontend (01-design-system.md)
-- [x] Next.js 16 + TypeScript + Tailwind CSS v4 + shadcn/ui setup
-- [x] `globals.css` — full theme system (colors, animations, glassmorphism, dark mode)
-- [x] `app/layout.tsx` — fonts (Space Grotesk, Inter, JetBrains Mono) + TooltipProvider
-- [x] `app/page.tsx` — complete Dashboard (navbar, left/right sidebars, center canvas, live telemetry)
-- [x] `components/ui/` — 12 shadcn primitives (button, card, dialog, dropdown-menu, input, progress, scroll-area, separator, sheet, skeleton, tabs, tooltip)
-- [x] `components/atrd/` — 8 custom components (ReasoningTrace, BudgetGauge, FailureHeatmap, PhaseStepper, MetricCard, NeuralPulse, CodeBlock, LeaderboardBadge)
-- [x] `lib/utils.ts` — cn() helper with tailwind-merge
+### ✅ 19 Feature Specs Written
 
-### ✅ Phase 2: Failure Analysis & Data Curation (02-failure-analysis-data-curation.md)
-- [x] `src/data/synthetic_generator.py` — SyntheticGenerator with failure extraction, teacher model correction, answer checking, failure classification
-- [x] `src/data/judge_filter.py` — JudgeFilter with quality scoring, heuristic-based filtering, report generation
-- [x] `src/data/deduplicator.py` — Deduplicator with SHA-256 exact dedup, n-gram shingling, Jaccard similarity
-- [x] `src/data/dataset_mixer.py` — DatasetMixer with configurable ratios, stratified sampling, source distribution tracking
+| # | File | Status |
+|---|------|--------|
+| 01 | `design-system.md` | ✅ |
+| 02 | `dashboard-layout.md` | ✅ |
+| 03 | `atrd-custom-components.md` | ✅ |
+| 04 | `baseline-evaluation.md` | ✅ |
+| 05 | `synthetic-data-generation.md` | ✅ |
+| 06 | `data-filtering-deduplication.md` | ✅ |
+| 07 | `data-curation-notebook.md` | ✅ |
+| 08 | `qlora-model-setup.md` | ✅ |
+| 09 | `sft-training-execution.md` | ✅ |
+| 10 | `sft-training-notebook.md` | ✅ |
+| 11 | `implicit-prm-setup.md` | ✅ (FIXED: heuristic PRM primary, log-ratio optional) |
+| 12 | `grpo-training-loop.md` | ✅ |
+| 13 | `grpo-training-notebook.md` | ✅ |
+| 14 | `budget-forcing.md` | ✅ (FIXED: data-gen-only, removed Wait injection, multi-stage refinement) |
+| 15 | `final-evaluation-ablation.md` | ✅ |
+| 16 | `submission-packaging.md` | ✅ |
+| 17 | `reusable-python-modules.md` | ✅ |
+| 18 | `configuration-scripts.md` | ✅ |
+| 19 | `documentation-writeup.md` | ✅ |
 
-### ✅ Phase 3: SFT Training (03-supervised-fine-tuning.md)
-- [x] `src/models/loader.py` — ModelLoader with NF4 4-bit quantization, bfloat16, double quant, GPU memory management
-- [x] `src/models/lora_config.py` — create_lora_config factory, validate_adapter, rank ≤ 32 enforcement
-- [x] `src/training/sft_trainer.py` — SFTTrainerWrapper with TRL SFTTrainer, dataset preparation, checkpoint saving
+### ✅ 02-dashboard-layout.md — Completed
 
-### ✅ Phase 4: GRPO RL (04-grpo-reinforcement-learning.md)
-- [x] `src/training/grpo_trainer.py` — GRPOTrainerWrapper with reward functions (format + correctness + redundancy penalty), _extract_boxed_answer, _check_answer, TRL GRPOTrainer integration
+- [x] Layout structure: full-viewport flex column, 3-column grid (280px | 1fr | 320px)
+- [x] Navbar: sticky, 64px, glass-panel, Brain logo, NeuralPulse engine status, Submit button
+- [x] Left Sidebar (280px): PhaseStepper + file tree with Folder/FileCode icons
+- [x] Center Canvas: phase header, P4 content (BudgetGauge + FailureHeatmap + ReasoningTrace), P1-3 content (MetricCards + CodeBlock), Telemetry Logs console with color-coded entries
+- [x] Right Sidebar (320px): LeaderboardBadge, Active Parameters (4 rows), Latency & Budget grid
+- [x] Responsive: grid collapses to single column on mobile
+- [x] Auto-scroll log console on new entries (via useRef + useEffect)
 
-### ✅ Phase 5: Budget Forcing & Inference (05-budget-forcing-inference.md)
-- [x] `src/inference/budget_forcer.py` — BudgetForcer with difficulty estimation (math indicators, length, multi-step), adaptive allocation, force_budget batch processing
-- [x] `src/inference/vllm_engine.py` — VLLMEngine with competition parameter locking, LoRA adapter support, batch generation
+### ✅ Existing Implementation (pre-specs)
+- Next.js 16 frontend builds clean (3.9s)
+- 13 Python modules in `src/` pass `py_compile`
+- 4 automation scripts in `scripts/`
+- 4 config files in `configs/`
+- 4 Kaggle notebooks in `notebooks/` with populated cells
 
-### ✅ Phase 6: Evaluation & Ablation (06-evaluation-ablation-studies.md)
-- [x] `src/evaluation/metric.py` — compute_accuracy, evaluate_submission, extract_boxed_answer with nested brace regex, numerical tolerance
-- [x] `src/evaluation/ablation.py` — AblationRunner with parameter sweeps, results table, best config finder
+### ✅ Critical Fixes Applied
 
-### ✅ Infrastructure & Configurations
-- [x] `configs/competition_params.json` — Immutable competition parameters (temperature=0.0, max_tokens=7680, etc.)
-- [x] `configs/base_lora.json` — Base LoRA config (r=32, alpha=64, 7 target modules)
-- [x] `configs/base_grpo.json` — Base GRPO config (G=8, KL=0.001, lr=5e-6)
-- [x] `configs/custom_lora.json` — Custom LoRA config for experiments
-- [x] `scripts/verify_unit_completion.py` — Phase gate verification (artifacts, LoRA rank, protected files)
-- [x] `scripts/package_submission.py` — submission.zip packaging with schema validation
-- [x] `scripts/verify_protected_files.py` — Pre-commit hook for immutable files
-- [x] `scripts/sync_to_hub.py` — Hugging Face Hub sync
-- [x] `requirements.txt` — 20 pinned Python dependencies
-- [x] `notebooks/01_data_generation.ipynb` — Complete P1 notebook with cells
-- [x] `notebooks/02_sft_training.ipynb` — Complete P2 notebook with cells
-- [x] `notebooks/03_grpo_training.ipynb` — Complete P3 notebook with cells
-- [x] `notebooks/04_budget_forcing.ipynb` — Complete P4 notebook with cells
+**Spec 11 (PRM):** Log-ratio PRM requires reference + current model in memory (~80GB VRAM for 30B). Changed to heuristic-PRM-primary default. Log-ratio is optional with graceful OOM fallback.
 
-### ✅ Feature Specs
-- [x] `context/feature-specs/01-design-system.md`
-- [x] `context/feature-specs/02-failure-analysis-data-curation.md`
-- [x] `context/feature-specs/03-supervised-fine-tuning.md`
-- [x] `context/feature-specs/04-grpo-reinforcement-learning.md`
-- [x] `context/feature-specs/05-budget-forcing-inference.md`
-- [x] `context/feature-specs/06-evaluation-ablation-studies.md`
+**Spec 14 (Budget Forcing):** Two problems — (1) vLLM doesn't support token-stream interception for "Wait" injection, (2) competition evaluates LoRA adapter with fixed params (temp=0, max_tokens=7680), so inference-time budget forcing can't affect submission. Changed to data-generation quality enhancer with multi-stage refinement for hard problems.
 
 ## Verification Results
 
@@ -76,7 +69,7 @@ Update this file after every meaningful implementation change.
 ```
 
 ### Python Syntax Check: ✅ ALL PASSED
-- 12 src modules + 4 scripts = 16 Python files, all syntax-valid
+- 16 Python files (12 src + 4 scripts), all syntax-valid
 
 ## Open Questions
 
@@ -91,10 +84,12 @@ Update this file after every meaningful implementation change.
 - All ML modules in `src/` with typed interfaces and docstrings.
 - Competition parameters in `configs/competition_params.json` marked as immutable.
 - Phase gates enforced via `scripts/verify_unit_completion.py`.
+- Budget forcing is data-gen-only, not inference-time (competition evaluates adapter with fixed params).
+- Heuristic PRM is default (zero GPU overhead); log-ratio PRM is optional high-memory enhancement.
 
 ## Session Notes
 
 - Full project implemented across all 6 feature specs.
 - Frontend builds successfully (Next.js 16.2.6).
 - All Python modules pass syntax validation.
-- Project is ready for `npm run dev` and training pipeline execution.
+- Specs 11 and 14 revised to match competition constraints.

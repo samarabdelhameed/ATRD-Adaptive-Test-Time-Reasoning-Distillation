@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Brain,
   FileCode,
@@ -31,6 +31,7 @@ export default function Home() {
     "SYSTEM: Memory usage stable at 82% of RTX PRO 6000 bounds.",
   ]);
   const [activeFile, setActiveFile] = useState<string>("src/inference/budget_forcer.py");
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   // Telemetry phase definitions
   const phases: Phase[] = [
@@ -241,6 +242,11 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, [budgetValue]);
+
+  // Auto-scroll log console to bottom on new entries
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logLogs]);
 
   // Code snippets mapping for files
   const fileCodes: Record<string, string> = {
@@ -476,6 +482,7 @@ export default function Home() {
                   </span>
                 </div>
               ))}
+              <div ref={logEndRef} />
             </div>
           </div>
         </main>

@@ -3,21 +3,21 @@
 ## ATRD: Adaptive Test-Time Reasoning Distillation
 
 ### 1. Purpose and Setup Order
-This specification defines the budget forcing mechanism for test-time compute scaling. The system monitors the generated token stream and dynamically adjusts reasoning depth based on problem difficulty.
+This specification defines the budget forcing mechanism for **training data quality enhancement**. Since the competition evaluates only the LoRA adapter with fixed vLLM params (`temperature=0.0`, `max_tokens=7680`), budget forcing cannot be applied at submission inference time. Instead, budget forcing improves **training data quality** by allocating compute budget adaptively during data generation: hard problems get more reasoning tokens, easy problems get fewer, and hard problem failures trigger multi-stage refinement.
 
 > [!IMPORTANT]
-> Read `12-grpo-training-loop.md` before implementing. GRPO checkpoint must exist.
+> Implement alongside `05-synthetic-data-generation.md`. Used during data generation, not submission.
 
 ---
 
 ## 2. Technical Components
 
-### 2.1 Difficulty Estimator (`src/inference/budget_forcer.py`)
+### 2.1 Difficulty Estimator (`src/data/budget_forcer.py`)
 
 #### 2.1.1 Heuristic-Based Estimation
 ```python
 def estimate_difficulty(problem: str) -> float:
-    """Estimate problem difficulty on 0–1 scale."""
+    """Estimate problem difficulty on 0–1 scale for token budget allocation."""
     score = 0.0
 
     # Length-based heuristic
@@ -50,118 +50,126 @@ def estimate_difficulty(problem: str) -> float:
 ```
 
 #### 2.1.2 Difficulty Tiers
-| Difficulty | Score Range | Token Budget | Strategy |
-|-----------|-------------|--------------|----------|
-| Easy | 0.00–0.30 | 256–512 | Force termination early |
-| Medium | 0.30–0.65 | 1024–4096 | Normal inference |
-| Hard | 0.65–1.00 | 4096–7680 | "Wait" injection to extend |
+| Difficulty | Score Range | Token Budget | Data Gen Strategy |
+|-----------|-------------|--------------|-------------------|
+| Easy | 0.00–0.30 | 512–1024 | Keep 1 generation |
+| Medium | 0.30–0.65 | 2048–4096 | Keep 1 generation |
+| Hard | 0.65–1.00 | 4096–7680 | Generate → evaluate → refine if wrong |
 
-### 2.2 Token-Level Budget Forcer
+### 2.2 Multi-Stage Data Refinement
 
-#### 2.2.1 Core Algorithm
+#### 2.2.1 Refinement Pipeline
+For hard problems where the initial generation produces an incorrect answer, re-generate with stronger reasoning:
+
 ```python
-def force_budget(
+def refine_hard_problem(
     problem: str,
-    generate_fn: Callable,
-    max_tokens: int = 7680,
-    min_tokens: int = 256,
+    initial_completion: str,
+    ground_truth: str,
+    max_attempts: int = 3,
 ) -> str:
-    """
-    Generate with budget forcing.
-    
-    1. Estimate difficulty
-    2. Allocate token budget
-    3. Generate tokens one by one
-    4. Monitor for </thinking> token
-    5. If hard and budget remaining: inject "Wait" to extend
-    6. If easy or budget exceeded: force </thinking> and final answer
-    """
-    difficulty = estimate_difficulty(problem)
-    budget = allocate_budget(difficulty, min_tokens, max_tokens)
-    
-    if difficulty < 0.3:
-        # Easy: force short thinking
-        return generate_with_limit(problem, max_tokens=budget)
-    elif difficulty > 0.65:
-        # Hard: enable Wait injection
-        return generate_with_wait_injection(problem, budget)
-    else:
-        # Medium: normal generation
-        return generate_fn(problem, max_tokens=budget)
+    """Regenerate hard problem solutions when answer is wrong."""
+    for attempt in range(max_attempts):
+        if check_answer(initial_completion, ground_truth):
+            return initial_completion
+
+        # Re-prompt with focus on error correction
+        corrected = generate_with_prompt(
+            problem=problem,
+            system_instruction=(
+                "The previous solution was incorrect. "
+                "Double-check each step carefully. "
+                "Break down the problem and verify your reasoning."
+            ),
+            max_tokens=7680,
+        )
+        initial_completion = corrected
+
+    return initial_completion
 ```
 
-#### 2.2.2 Wait Token Injection
+#### 2.2.2 Data Generation with Budget Forcing
 ```python
-def generate_with_wait_injection(
-    prompt: str,
-    budget: int,
-    max_wait_injections: int = 3,
-) -> str:
-    """Generate with up to 3 'Wait' injections when </thinking> detected early."""
-    
-    thinking_tokens = 0
-    wait_injections = 0
-    completed = ""
+def generate_training_data_with_budget(
+    problem: str,
+    ground_truth: str,
+    difficulty: float,
+) -> Dict[str, Any]:
+    """Generate training example with difficulty-aware budget allocation."""
+    budget = allocate_budget(difficulty)
+    completion = generate(problem, max_tokens=budget)
+    correct = check_answer(completion, ground_truth)
 
-    while thinking_tokens < budget:
-        # Generate next token
-        token = generate_next_token(completed)
-        
-        # Check for end-of-thinking
-        if token == "</thinking>" and thinking_tokens < budget * 0.8:
-            if wait_injections < max_wait_injections:
-                # Inject "Wait" to extend reasoning
-                token = "Wait, let me verify this step...\\n"
-                wait_injections += 1
-                print(f"  Budget forcing: Wait injection #{wait_injections}")
-            else:
-                break  # Max injections reached
+    # Hard problems: attempt refinement if wrong
+    if difficulty > 0.65 and not correct:
+        completion = refine_hard_problem(problem, completion, ground_truth)
+        correct = check_answer(completion, ground_truth)
 
-        completed += token
-        thinking_tokens += 1
-
-    return completed
+    return {
+        "question": problem,
+        "answer": ground_truth,
+        "completion": completion,
+        "difficulty": difficulty,
+        "budget_allocated": budget,
+        "correct": correct,
+        "refined": difficulty > 0.65,
+        "difficulty_tier": (
+            "easy" if difficulty < 0.3
+            else "medium" if difficulty < 0.65
+            else "hard"
+        ),
+    }
 ```
 
 ### 2.3 Budget Allocation
 ```python
-def allocate_budget(difficulty: float, min_tokens: int, max_tokens: int) -> int:
-    """Linear interpolation between min and max tokens."""
+def allocate_budget(difficulty: float, min_tokens: int = 512, max_tokens: int = 7680) -> int:
+    """Linear interpolation between min and max tokens based on difficulty."""
     budget = int(min_tokens + difficulty * (max_tokens - min_tokens))
     return max(min_tokens, min(max_tokens, budget))
 ```
 
-### 2.4 vLLM Integration (`src/inference/vllm_engine.py`)
+### 2.4 Integration with Data Generation Pipeline
+
+Budget forcing operates during the **data generation phase** (spec 05), not at inference time:
 
 ```python
-from vllm import LLM, SamplingParams
+# During synthetic data generation:
+from src.data.budget_forcer import estimate_difficulty, generate_training_data_with_budget
 
-engine = LLM(
-    model="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
-    max_model_len=8192,
-    gpu_memory_utilization=0.85,
-    enable_lora=True,
-    max_lora_rank=32,
-    trust_remote_code=True,
-)
+all_problems = [...]  # List of (question, answer) pairs
+dataset = []
+for question, answer in all_problems:
+    difficulty = estimate_difficulty(question)
+    example = generate_training_data_with_budget(question, answer, difficulty)
+    dataset.append(example)
 
-sampling_params = SamplingParams(
-    temperature=0.0,      # Competition-mandated
-    max_tokens=7680,       # Competition-mandated
-    top_p=1.0,             # Competition-mandated
-)
+# Statistics
+hard_correct = sum(1 for d in dataset if d["difficulty_tier"] == "hard" and d["correct"])
+hard_total = sum(1 for d in dataset if d["difficulty_tier"] == "hard")
+print(f"Hard problem accuracy after refinement: {hard_correct}/{hard_total}")
 ```
 
 ---
 
 ## 3. Validation
 
-### 3.1 Stratified Evaluation
-| Difficulty Bin | Without Budget Forcing | With Budget Forcing | Expected Delta |
-|---------------|----------------------|-------------------|----------------|
-| Easy (bottom 20%) | Accuracy_baseline | Accuracy_forced | Degradation ≤ 2% |
-| Hard (top 20%) | Accuracy_baseline | Accuracy_forced | Improvement ≥ 5% |
-| Overall | Accuracy_baseline | Accuracy_forced | Net ≥ +3% |
+### 3.1 Refinement Quality Check
+```python
+def validate_refinement_improvement(results: List[Dict]) -> Dict:
+    """Check that refinement increases hard-problem accuracy."""
+    hard_problems = [r for r in results if r["difficulty"] > 0.65]
+    initial_correct = sum(
+        1 for r in hard_problems
+        if check_answer(r["completion_before_refinement"], r["answer"])
+    )
+    final_correct = sum(1 for r in hard_problems if r["correct"])
+    return {
+        "initial_accuracy": initial_correct / max(len(hard_problems), 1),
+        "final_accuracy": final_correct / max(len(hard_problems), 1),
+        "improvement": (final_correct - initial_correct) / max(len(hard_problems), 1),
+    }
+```
 
 ### 3.2 Budget Statistics
 ```python
@@ -181,10 +189,9 @@ def get_budget_stats(results: List[Dict]) -> Dict:
 
 ## 4. Exit Quality Gate
 - [ ] Difficulty estimator correctly classifies easy/medium/hard problems
-- [ ] Wait injection triggers on hard problems when `</thinking>` appears early
-- [ ] Easy problems terminate early (≤ 512 tokens)
-- [ ] Hard problems get extended reasoning (Wait up to 3x)
-- [ ] Easy problem accuracy degrades ≤ 2% (no regression)
-- [ ] Hard problem accuracy improves ≥ 5%
-- [ ] Overall net accuracy improvement ≥ 3%
-- [ ] vLLM compatible — runs with `temperature=0.0`, `max_tokens=7680`
+- [ ] Hard-problem refinement improves accuracy ≥ 10% over initial generation
+- [ ] Easy problems use ≤ 1024 tokens (compute saved for hard problems)
+- [ ] budget forcing integrated into data generation pipeline (spec 05)
+- [ ] Token budget statistics logged to `logs/budget_stats.json`
+- [ ] Training dataset includes `difficulty` and `refined` metadata columns
+- [ ] No impact on submission (budget forcing is data-gen-only, not inference-time)

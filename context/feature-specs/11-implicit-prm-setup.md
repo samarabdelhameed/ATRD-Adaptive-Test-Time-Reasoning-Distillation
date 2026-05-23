@@ -3,7 +3,7 @@
 ## ATRD: Adaptive Test-Time Reasoning Distillation
 
 ### 1. Purpose and Setup Order
-This specification defines the implicit Process Reward Model (PRM) setup for GRPO reinforcement learning. The PRM scores intermediate reasoning steps without requiring a separate trained model.
+This specification defines the Process Reward Model (PRM) for GRPO reinforcement learning. The PRM scores intermediate reasoning steps. The **default implementation uses heuristic scoring** (zero additional GPU memory). Log-ratio scoring against a reference model is available as an **optional enhancement** if GPU memory permits.
 
 > [!IMPORTANT]
 > Read `09-sft-training-execution.md` before implementing. SFT checkpoint must exist.
@@ -12,35 +12,9 @@ This specification defines the implicit Process Reward Model (PRM) setup for GRP
 
 ## 2. Technical Components
 
-### 2.1 Log-Ratio PRM Scorer (`src/training/grpo_trainer.py`)
+### 2.1 Heuristic PRM Scorer (Primary / Default) (`src/training/prm.py`)
 
-#### 2.1.1 Core Mechanism
-The implicit PRM computes step-level quality scores by comparing log-probabilities:
-
-```
-PRM_score(step_i) = sigmoid(log P_ref(step_i | context) - log P_θ(step_i | context))
-```
-
-Where:
-- `P_ref` = reference policy (SFT checkpoint, frozen)
-- `P_θ` = current policy (being trained by GRPO)
-- Higher score → current policy produces more confident reasoning than reference
-
-#### 2.1.2 Step Segmentation
-```python
-def segment_thinking_trace(completion: str) -> List[str]:
-    """Split completion into reasoning steps."""
-    # Split on sentence boundaries, equation lines, or step markers
-    steps = re.split(r'(?<=\.) |(?<=\n)', completion)
-
-    # Filter out empty steps and the final answer box
-    steps = [s.strip() for s in steps if s.strip() and "\\boxed" not in s]
-    return steps
-```
-
-### 2.2 Regex-Based PRM (Fallback)
-
-If log-ratio computation introduces excessive memory overhead, use heuristic PRM:
+The heuristic PRM uses regex patterns to evaluate reasoning step quality without requiring a reference model:
 
 | Heuristic | Score Contribution |
 |-----------|-------------------|
@@ -75,14 +49,54 @@ def heuristic_step_score(step: str) -> float:
     return max(0.0, min(1.0, score))
 ```
 
+#### Step Segmentation
+```python
+def segment_thinking_trace(completion: str) -> List[str]:
+    """Split completion into reasoning steps."""
+    steps = re.split(r'(?<=\.) |(?<=\n)', completion)
+    steps = [s.strip() for s in steps if s.strip() and "\\boxed" not in s]
+    return steps
+```
+
+### 2.2 Log-Ratio PRM Scorer (Optional — High Memory)
+
+> [!CAUTION]
+> Log-ratio PRM requires **both** the reference model (frozen SFT) and the current policy in GPU memory simultaneously. For a 30B parameter model with LoRA, this requires ~80GB+ VRAM. **Skips automatically on low-memory GPUs.**
+
+```python
+def compute_log_ratio_score(
+    step: str,
+    context: str,
+    ref_model: torch.nn.Module,
+    current_model: torch.nn.Module,
+    tokenizer,
+) -> float:
+    """Compute PRM score via log-probability ratio.
+    
+    Returns None if computation fails (OOM or missing models).
+    """
+    try:
+        ref_log_prob = get_log_prob(ref_model, context + step, tokenizer)
+        cur_log_prob = get_log_prob(current_model, context + step, tokenizer)
+        ratio = ref_log_prob - cur_log_prob
+        return torch.sigmoid(torch.tensor(ratio)).item()
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            torch.cuda.empty_cache()
+            return None
+        raise
+```
+
 ### 2.3 Integration with GRPO Reward
 
 ```python
 def compute_prm_guided_reward(
     completion: str,
     ground_truth: str,
-    ref_log_probs: Optional[List[float]] = None,
-    current_log_probs: Optional[List[float]] = None,
+    ref_model: Optional[torch.nn.Module] = None,
+    current_model: Optional[torch.nn.Module] = None,
+    tokenizer=None,
+    use_log_ratio: bool = False,
 ) -> float:
     """Compute composite reward with PRM scores."""
     # Final answer correctness (primary signal)
@@ -94,22 +108,20 @@ def compute_prm_guided_reward(
     if "<<thinking>>" in completion: format_reward += 0.1
     if "</thinking>>" in completion: format_reward += 0.1
 
-    # PRM step scores (if log-probs available)
-    prm_reward = 0.0
-    if ref_log_probs and current_log_probs:
-        steps = segment_thinking_trace(completion)
+    # PRM step scores: heuristic by default, log-ratio if configured + available
+    steps = segment_thinking_trace(completion)
+    if use_log_ratio and ref_model is not None and current_model is not None:
         step_scores = []
-        for i, step in enumerate(steps):
-            if i < len(ref_log_probs) and i < len(current_log_probs):
-                ratio = ref_log_probs[i] - current_log_probs[i]
-                step_score = torch.sigmoid(torch.tensor(ratio)).item()
-                step_scores.append(step_score)
-        prm_reward = sum(step_scores) / max(len(step_scores), 1) * 0.4
+        for step in steps:
+            score = compute_log_ratio_score(step, "", ref_model, current_model, tokenizer)
+            if score is not None:
+                step_scores.append(score)
+        if not step_scores:
+            step_scores = [heuristic_step_score(s) for s in steps]
     else:
-        # Fallback: heuristic PRM
-        steps = segment_thinking_trace(completion)
         step_scores = [heuristic_step_score(s) for s in steps]
-        prm_reward = sum(step_scores) / max(len(step_scores), 1) * 0.4
+
+    prm_reward = sum(step_scores) / max(len(step_scores), 1) * 0.4
 
     # Redundancy penalty
     redundancy_penalty = -0.3 if detect_redundancy(completion) else 0.0
@@ -146,9 +158,11 @@ def test_prm_correlation():
 ---
 
 ## 4. Exit Quality Gate
-- [ ] PRM scoring function implemented (log-ratio or heuristic fallback)
+- [ ] Heuristic PRM scoring function implemented (default, zero GPU overhead)
 - [ ] Step segmentation correctly splits thinking traces
 - [ ] PRM scores correlate with answer correctness (correct > incorrect)
 - [ ] Redundancy penalty detects repeated phrases
 - [ ] Format reward correctly identifies `\boxed{}` and `<<thinking>>` tokens
 - [ ] Composite reward function produces values in [-1.0, 1.0] range
+- [ ] Heuristic PRM runs without requiring reference model in memory
+- [ ] Log-ratio PRM gracefully falls back to heuristic on OOM
