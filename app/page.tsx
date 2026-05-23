@@ -198,21 +198,27 @@ export default function Home() {
     setFilterProgress(0);
     addLog("JUDGE: Running composite quality score evaluation (weights: 0.35 Correctness, 0.25 Clarity, 0.20 Difficulty, 0.20 Format)...");
 
-    let idx = 0;
+    let step = 0;
+    const total = judgeDataset.length;
+
     const interval = setInterval(() => {
-      if (idx < judgeDataset.length) {
+      if (step < total) {
+        const currentItem = judgeDataset[step];
+        const newStatus = currentItem.score >= 0.65 ? "passed" : "rejected";
+
         setJudgeDataset((prev) => {
-          const next = [...prev];
-          const item = next[idx];
-          item.status = item.score >= 0.65 ? "passed" : "rejected";
-          return next;
+          return prev.map((item, idx) => {
+            if (idx === step) {
+              return { ...item, status: newStatus };
+            }
+            return item;
+          });
         });
 
-        const currentItem = judgeDataset[idx];
-        addLog(`JUDGE EVAL: Problem #${currentItem.id} - Score: ${currentItem.score.toFixed(2)} | Status: ${currentItem.score >= 0.65 ? "PASSED (Keep)" : "REJECTED (Filter)"}`);
+        addLog(`JUDGE EVAL: Problem #${currentItem.id} - Score: ${currentItem.score.toFixed(2)} | Status: ${newStatus.toUpperCase()}`);
 
-        idx += 1;
-        setFilterProgress(Math.round((idx / judgeDataset.length) * 100));
+        step += 1;
+        setFilterProgress(Math.round((step / total) * 100));
       } else {
         clearInterval(interval);
         setIsFiltering(false);
