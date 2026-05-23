@@ -1,0 +1,169 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-void: #030303;
+  --color-surface: #0A0A0F;
+  --color-elevated: #111118;
+  --color-nvidia: #76B900;
+  --color-cyan: #00F0FF;
+  --color-purple: #B829DD;
+  --color-amber: #FFB800;
+  --color-rose: #FF4D6D;
+
+  --color-text-primary: #F0F0F5;
+  --color-text-secondary: #A0A0B0;
+  --color-text-muted: #606070;
+  --color-text-inverse: #030303;
+
+  --font-sans: var(--font-sans), sans-serif;
+  --font-mono: var(--font-mono), monospace;
+  --font-display: var(--font-display), sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  /* Map shadcn theme variables to Tailwind CSS v4 colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --animate-neural-pulse: neuralPulse 2s ease-in-out infinite;
+  --animate-budget-flow: budgetFlow 1.5s ease-out forwards;
+  --animate-float: float 8s ease-in-out infinite;
+  --animate-spin-slow: spin 2s linear infinite;
+  --animate-fade-up: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes neuralPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(118, 185, 0, 0); }
+}
+
+@keyframes budgetFlow {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(1deg); }
+  66% { transform: translateY(8px) rotate(-1deg); }
+}
+
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+:root {
+  --background: #030303;
+  --foreground: #F0F0F5;
+
+  --card: #0A0A0F;
+  --card-foreground: #F0F0F5;
+
+  --popover: #0A0A0F;
+  --popover-foreground: #F0F0F5;
+
+  --primary: #76B900;
+  --primary-foreground: #030303;
+
+  --secondary: #111118;
+  --secondary-foreground: #A0A0B0;
+
+  --muted: #111118;
+  --muted-foreground: #606070;
+
+  --accent: #00F0FF;
+  --accent-foreground: #030303;
+
+  --destructive: #FF4D6D;
+  --destructive-foreground: #F0F0F5;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --input: #0D0D14;
+  --ring: #00F0FF;
+
+  --radius: 0.625rem;
+
+  --sidebar: #0A0A0F;
+  --sidebar-foreground: #F0F0F5;
+  --sidebar-primary: #76B900;
+  --sidebar-primary-foreground: #030303;
+  --sidebar-accent: #111118;
+  --sidebar-accent-foreground: #F0F0F5;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #00F0FF;
+
+  /* Custom Theme Tokens */
+  --bg-base: #030303;
+  --bg-surface: #0A0A0F;
+  --bg-elevated: #111118;
+  --bg-glass: rgba(17, 17, 24, 0.72);
+  --bg-input: #0D0D14;
+
+  --text-primary: #F0F0F5;
+  --text-secondary: #A0A0B0;
+  --text-muted: #606070;
+  --text-inverse: #030303;
+
+  --accent-primary: #76B900;
+  --accent-cyan: #00F0FF;
+  --accent-purple: #B829DD;
+  --accent-amber: #FFB800;
+  --accent-rose: #FF4D6D;
+
+  --border-default: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(118, 185, 0, 0.3);
+  --border-active: rgba(0, 240, 255, 0.4);
+  --border-error: rgba(255, 77, 109, 0.5);
+
+  --gradient-neural: linear-gradient(135deg, #76B900 0%, #00F0FF 50%, #B829DD 100%);
+  --gradient-heat: linear-gradient(90deg, #76B900 0%, #FFB800 50%, #FF4D6D 100%);
+  --gradient-edge: linear-gradient(180deg, rgba(118,185,0,0.3) 0%, rgba(0,240,255,0.1) 100%);
+  --gradient-shine: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-void text-text-primary;
+  }
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-default);
+}
+
+.glass-panel-hover:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(118, 185, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}

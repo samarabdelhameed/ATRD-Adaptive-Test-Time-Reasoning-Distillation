@@ -1,15 +1,14 @@
 # Progress Tracker
 
-Update this file after every meaningful implementation
-change.
+Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- [e.g. Not started / In progress / Complete]
+- Phase 1: Environment & Design System Setup
 
 ## Current Goal
 
-- [What you are building right now]
+- Configure next.js application, Tailwind CSS v4, shadcn/ui, and lucide-react primitive components.
 
 ## Completed
 
@@ -17,21 +16,21 @@ change.
 
 ## In Progress
 
-- None yet.
+- Environment Initialization and Shadcn/UI configuration (`01-design-system.md`).
 
 ## Next Up
 
-- [First unit to build]
+- Creating ATRD custom components in `components/atrd/` and constructing the core Dashboard layout.
 
 ## Open Questions
 
-- [Any unresolved product or technical decisions]
+- None.
 
 ## Architecture Decisions
 
-- [Decisions made that affect the system design or
-  data model — include why the decision was made]
+- Initialized Next.js 16 app with TypeScript and Tailwind CSS v4 at root.
+- Used lowercase directory name template to bypass npm naming rules, then merged content to root workspace.
 
 ## Session Notes
 
-- [Context needed to resume work in the next session]
+- Predefined colors, typography, borders, and animations are active in `globals.css` and layout files.
