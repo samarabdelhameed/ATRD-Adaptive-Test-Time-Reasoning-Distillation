@@ -184,40 +184,15 @@ class Deduplicator:
         lsh = LSH()
         near_dup_ids: Set[int] = set()
         for sig_idx, (orig_idx, sig) in enumerate(signatures):
-            # Query candidates from current LSH state before adding this document
-            candidates = set()
-            for b in range(lsh.num_bands):
-                start = b * lsh.rows_per_band
-                end = start + lsh.rows_per_band
-                band = tuple(sig[start:end])
-                bucket_key = lsh.hash_band(band)
-                if bucket_key in lsh.buckets:
-                    for other_id in lsh.buckets[bucket_key]:
-                        candidates.add(other_id)
-            
-            # Check similarity with candidates
-            is_duplicate = False
+            candidates = lsh.get_candidates(sig, sig_idx)
             for cand_idx in candidates:
                 if cand_idx in near_dup_ids:
                     continue
                 cand_sig = signatures[cand_idx][1]
                 sim = MinHash.jaccard(sig, cand_sig)
                 if sim > self.similarity_threshold:
-                    is_duplicate = True
+                    near_dup_ids.add(sig_idx)
                     break
-            
-            if is_duplicate:
-                near_dup_ids.add(sig_idx)
-            else:
-                # Add to LSH buckets only if it is NOT a duplicate (we decide to keep it)
-                for b in range(lsh.num_bands):
-                    start = b * lsh.rows_per_band
-                    end = start + lsh.rows_per_band
-                    band = tuple(sig[start:end])
-                    bucket_key = lsh.hash_band(band)
-                    if bucket_key not in lsh.buckets:
-                        lsh.buckets[bucket_key] = []
-                    lsh.buckets[bucket_key].append(sig_idx)
 
         final: List[Dict[str, Any]] = [
             ex for i, ex in enumerate(unique) if i not in near_dup_ids

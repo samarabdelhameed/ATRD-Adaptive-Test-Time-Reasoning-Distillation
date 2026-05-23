@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- ✅ 07-data-curation-notebook.md — Completed
+- 🔄 Implementing 08-qlora-model-setup.md
 
 ## Current Goal
 
-- Move to 08-qlora-model-setup.md
+- Complete 08-qlora-model-setup.md implementation (verify exit gate → mark complete → move to 09)
 
 ## Completed
 
