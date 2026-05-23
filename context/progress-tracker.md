@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 06-data-filtering-deduplication.md
+- ✅ 07-data-curation-notebook.md — Completed
 
 ## Current Goal
 
-- Complete 06-data-filtering-deduplication.md implementation (verify exit gate → mark complete → move to 07)
+- Move to 08-qlora-model-setup.md
 
 ## Completed
 
@@ -56,6 +56,45 @@ Update this file after every meaningful implementation change.
 - [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
+
+### ✅ 07-data-curation-notebook.md — Completed
+
+- [x] Cell 1: imports + reproducibility (seed 42, deterministic cudnn)
+- [x] Cell 2: Phase1Config dataclass (model, paths, targets)
+- [x] Cell 3: helpers (format_prompt, extract_boxed_answer, check_answer, classify_failure)
+- [x] Cell 4: base model loading via ModelLoader
+- [x] Cell 5: baseline evaluation → baseline_results.json
+- [x] Cell 6: failure mode analysis → failure_modes.json
+- [x] Cell 7: synthetic generation via SyntheticGenerator per failure mode
+- [x] Cell 8: quality filtering via JudgeFilter (top 80%)
+- [x] Cell 9: deduplication via Deduplicator (MinHash + LSH)
+- [x] Cell 10: dataset mixing (50/25/25) via DatasetMixer
+- [x] Cell 11: leakage check — zero 5-gram overlap
+- [x] Cell 12: save + upload to Kaggle Datasets + stats report
+- [x] Cell 13: cleanup (del model, empty_cache, gc.collect)
+
+### ✅ 06-data-filtering-deduplication.md — Completed
+
+**judge_filter.py:**
+- [x] 4 weighted criteria: correctness (0.35), reasoning clarity (0.25), difficulty (0.20), format (0.20)
+- [x] Composite score = 0.35*correctness + 0.25*clarity + 0.20*difficulty + 0.20*format
+- [x] heuristic_score() for fast pre-filtering
+- [x] Top 80% filtering by composite score (percentile-based)
+- [x] generate_report() with pass rate and mean score
+
+**deduplicator.py:**
+- [x] MinHash signature generation with 128 permutations
+- [x] LSH (Locality-Sensitive Hashing) for candidate pair bucketing
+- [x] Near-duplicate removal at Jaccard > 0.85
+- [x] SHA-256 exact dedup
+- [x] Character n-gram shingles (n=5)
+
+**dataset_mixer.py:**
+- [x] 50/25/25 ratio (synthetic / OpenMathReasoning / OpenCodeReasoning)
+- [x] Stratified sampling preserving failure mode distribution
+- [x] Reasoning ratio verification (target 0.70-0.80)
+- [x] check_leakage() — zero 5-gram overlap with test set
+- [x] save_mixed() defaulting to final_train_dataset.jsonl
 
 ### ✅ 05-synthetic-data-generation.md — Completed
 
