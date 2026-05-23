@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 11-implicit-prm-setup.md
+- 🔄 Implementing 12-grpo-training-loop.md
 
 ## Current Goal
 
-- Complete 11-implicit-prm-setup.md implementation (verify exit gate → mark complete → move to 12)
+- Complete 12-grpo-training-loop.md implementation (verify exit gate → mark complete → move to 13)
 
 ## Completed
 
@@ -57,24 +57,28 @@ Update this file after every meaningful implementation change.
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
 
-### ✅ 10-sft-training-notebook.md — Completed
+### ✅ 11-implicit-prm-setup.md — Completed
 
-- [x] Cell 1: imports and reproducibility setup (SEED=42)
-- [x] Cell 2: configuration dataclass `Phase2Config` (BASE_MODEL, rank-32, alpha-64, learning rate, epoch)
-- [x] Cell 3: load model with 4-bit quantization, tokenizer pad_token config, validate LoRA config, apply adapter
-- [x] Cell 4: load synthetic training dataset and split into 90% train, 10% eval
-- [x] Cell 5: SFTTrainerWrapper setup and training loop invocation
-- [x] Cell 6: save adapter weights to `checkpoints/sft/final_adapter` and validate rank constraint (r <= 32)
-- [x] Cell 7: loss curves plotting (matplotlib) and save simulated eval logs to `logs/p2_sft_eval.json`
-- [x] Cell 8: sync final adapter weights to Hugging Face Hub (private repository)
-- [x] Cell 9: memory cleanup (empty CUDA cache + gc collect)
+**prm.py:**
+- [x] segment_thinking_trace() — splits trace on period-space or newline, filtering out empty entries or boxed blocks
+- [x] heuristic_step_score() — evaluates numerical transitions, logical connectors, equations, and penalizes word repetition
+- [x] detect_redundancy() — catches exact line-level repetition loops and windowed word n-gram repeating sequences
+- [x] compute_log_ratio_score() — computes sigmoid value of ref_model log probs minus cur_model log probs
+- [x] compute_prm_guided_reward() — composite scoring wrapping SFT accuracy, format tokens, PRM steps, and redundancy penalty
+- [x] Clamped composite reward range in [-1.0, 1.0]
+- [x] Graceful fallback to heuristic scoring under log-ratio OOM (CUDA memory clearing + None return)
+- [x] Exposed functions in `src/training/__init__.py`
 
 ### ✅ 09-sft-training-execution.md — Completed
 
-- [x] SFTTrainerWrapper class with prepare_dataset and _format_example mapping
-- [x] Training arguments configuration: bf16=True, gradient_checkpointing=True, save_steps=50, limit=3
-- [x] Trainer train execution returning TrainingArguments result
-- [x] Adapter save_pretrained and tokenizer save_pretrained implementation
+**sft_trainer.py:**
+- [x] format_sft_example() — `{prompt}\n\n{thinking}\n\nAnswer: {answer}` format
+- [x] should_early_stop() — plateau detection (max-min < 0.01 over patience window)
+- [x] test_generation() — inference with temperature=0.0, do_sample=False
+- [x] Training hyperparams: lr=2e-4, epochs=3, batch=1, grad_acc=8, max_seq_length=4096
+- [x] warmup_steps=100, lr_scheduler="cosine", optim="adamw_torch_fused"
+- [x] save_adapter() saves to output_dir/final_adapter/
+- [x] _save_results() to logs/sft_results.json
 
 ### ✅ 08-qlora-model-setup.md — Completed
 
