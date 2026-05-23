@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 09-sft-training-execution.md
+- 🔄 Implementing 11-implicit-prm-setup.md
 
 ## Current Goal
 
-- Complete 09-sft-training-execution.md implementation (verify exit gate → mark complete → move to 10)
+- Complete 11-implicit-prm-setup.md implementation (verify exit gate → mark complete → move to 12)
 
 ## Completed
 
@@ -56,6 +56,25 @@ Update this file after every meaningful implementation change.
 - [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
+
+### ✅ 10-sft-training-notebook.md — Completed
+
+- [x] Cell 1: imports and reproducibility setup (SEED=42)
+- [x] Cell 2: configuration dataclass `Phase2Config` (BASE_MODEL, rank-32, alpha-64, learning rate, epoch)
+- [x] Cell 3: load model with 4-bit quantization, tokenizer pad_token config, validate LoRA config, apply adapter
+- [x] Cell 4: load synthetic training dataset and split into 90% train, 10% eval
+- [x] Cell 5: SFTTrainerWrapper setup and training loop invocation
+- [x] Cell 6: save adapter weights to `checkpoints/sft/final_adapter` and validate rank constraint (r <= 32)
+- [x] Cell 7: loss curves plotting (matplotlib) and save simulated eval logs to `logs/p2_sft_eval.json`
+- [x] Cell 8: sync final adapter weights to Hugging Face Hub (private repository)
+- [x] Cell 9: memory cleanup (empty CUDA cache + gc collect)
+
+### ✅ 09-sft-training-execution.md — Completed
+
+- [x] SFTTrainerWrapper class with prepare_dataset and _format_example mapping
+- [x] Training arguments configuration: bf16=True, gradient_checkpointing=True, save_steps=50, limit=3
+- [x] Trainer train execution returning TrainingArguments result
+- [x] Adapter save_pretrained and tokenizer save_pretrained implementation
 
 ### ✅ 08-qlora-model-setup.md — Completed
 
