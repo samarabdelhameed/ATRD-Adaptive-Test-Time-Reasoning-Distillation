@@ -8,12 +8,10 @@ Update this file after every meaningful implementation change.
 - ✅ 02-dashboard-layout.md — Completed
 - ✅ 03-atrd-custom-components.md — Completed
 - ✅ Full Frontend Integration & User Journey — Completed
-- ✅ 11-implicit-prm-setup.md — Completed (All unit tests passed successfully)
-- ✅ 12-grpo-training-loop.md — Completed (reward_fn, KLMonitor, monotonic check, config validation, save_training_log — all tests passed)
 
 ## Current Goal
 
-- Specs 12–19 review and testing
+- ✅ 13-grpo-training-notebook.md — Completed
 
 ## Completed
 
