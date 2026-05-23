@@ -1,0 +1,18 @@
+{
+  "group_size": 8,
+  "kl_penalty": 0.001,
+  "learning_rate": 5e-6,
+  "batch_size": 1,
+  "gradient_accumulation_steps": 8,
+  "max_grad_norm": 1.0,
+  "num_train_epochs": 1,
+  "max_steps": 500,
+  "warmup_ratio": 0.1,
+  "logging_steps": 10,
+  "save_steps": 50,
+  "eval_steps": 50,
+  "bf16": true,
+  "fp16": false,
+  "gradient_checkpointing": true,
+  "use_vllm": false
+}

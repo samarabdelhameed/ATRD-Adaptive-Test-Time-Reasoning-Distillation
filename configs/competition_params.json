@@ -1,0 +1,14 @@
+{
+  "model_name": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
+  "max_lora_rank": 32,
+  "max_tokens": 7680,
+  "top_p": 1.0,
+  "temperature": 0.0,
+  "max_num_seqs": 64,
+  "gpu_memory_utilization": 0.85,
+  "max_model_len": 8192,
+  "answer_format": "\\boxed{}",
+  "numerical_tolerance": 0.01,
+  "inference_engine": "vllm",
+  "reasoning_parser": "nvidia-reasoning-parser"
+}

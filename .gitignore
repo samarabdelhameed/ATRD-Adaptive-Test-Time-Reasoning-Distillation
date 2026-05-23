@@ -1,1 +1,64 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+.Python
+develop-eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# === Virtual Environments ===
+venv/
+env/
+.venv/
+.env
+
+# === Jupyter / Kaggle ===
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
 .DS_Store
+Thumbs.db
+
+# === Project Specific ===
+checkpoints/
+logs/
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+wandb/
+outputs/
+
+# === Secrets ===
+.env
+*.key
+secrets/
+token.txt
+
+# === Large Files ===
+*.zip
+*.tar.gz
+*.tar.bz2
+data/*.json
+data/*.jsonl
+data/*.csv
+data/*.parquet
+
+# === HuggingFace Cache ===
+.cache/
