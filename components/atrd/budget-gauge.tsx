@@ -35,7 +35,7 @@ export function BudgetGauge({ value, onChange, className }: BudgetGaugeProps) {
     <div className={cn("glass-panel p-5 rounded-lg flex flex-col gap-4", className)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-accent-cyan" />
+          <Clock className="h-4 w-4 text-cyan" />
           <span className="font-display text-xs font-semibold tracking-wider uppercase text-text-secondary">
             Compute Allocation Budget
           </span>
@@ -45,7 +45,7 @@ export function BudgetGauge({ value, onChange, className }: BudgetGaugeProps) {
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 relative">
         <div className="flex justify-between items-baseline">
           <span className="font-mono text-xs text-text-muted">Max Tokens</span>
           <span className="font-mono text-xl font-bold text-text-primary">
@@ -53,23 +53,25 @@ export function BudgetGauge({ value, onChange, className }: BudgetGaugeProps) {
           </span>
         </div>
 
-        <div className="relative w-full h-2 bg-void rounded-full overflow-hidden border border-default">
-          <div
-            className={cn("h-full transition-all duration-300 ease-out", barBg)}
-            style={{ width: `${percentage}%` }}
+        <div className="relative w-full py-1">
+          <div className="relative w-full h-2 bg-void rounded-full overflow-hidden border border-default">
+            <div
+              className={cn("h-full transition-all duration-300 ease-out", barBg)}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          <input
+            type="range"
+            min="256"
+            max="7680"
+            step="128"
+            value={value}
+            onChange={handleSliderChange}
+            className="w-full h-full bg-transparent appearance-none cursor-pointer focus:outline-none focus:ring-0 opacity-0 absolute top-0 left-0"
+            style={{ pointerEvents: onChange ? "auto" : "none" }}
           />
         </div>
-
-        <input
-          type="range"
-          min="256"
-          max="7680"
-          step="128"
-          value={value}
-          onChange={handleSliderChange}
-          className="w-full h-1 bg-transparent appearance-none cursor-pointer focus:outline-none focus:ring-0 opacity-0 absolute"
-          style={{ pointerEvents: onChange ? "auto" : "none" }}
-        />
       </div>
 
       <div className="grid grid-cols-3 gap-1 font-mono text-[10px] text-text-muted text-center pt-1">

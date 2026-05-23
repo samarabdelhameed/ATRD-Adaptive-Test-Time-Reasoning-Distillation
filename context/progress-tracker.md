@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 03-atrd-custom-components.md
+- 🔄 Implementing 04-baseline-evaluation.md
 
 ## Current Goal
 
-- Complete 03-atrd-custom-components.md implementation (verify exit gate → mark complete → move to 04)
+- Complete 04-baseline-evaluation.md implementation (verify exit gate → mark complete → move to 05)
 
 ## Completed
 
@@ -45,6 +45,17 @@ Update this file after every meaningful implementation change.
 - [x] Right Sidebar (320px): LeaderboardBadge, Active Parameters (4 rows), Latency & Budget grid
 - [x] Responsive: grid collapses to single column on mobile
 - [x] Auto-scroll log console on new entries (via useRef + useEffect)
+
+### ✅ 03-atrd-custom-components.md — Completed
+
+- [x] ReasoningTrace: vertical timeline with color-coded nodes by type (thinking, assertion, correction with pulse, conclusion), collapsible sections, dynamic token count, and latency stats
+- [x] BudgetGauge: linear compute slider (256-7680 tokens) with relative overlay for precise tracking, difficulty tier badge (easy, medium, hard), and quick-select presets
+- [x] FailureHeatmap: 2-column grid of error mode cards using Tooltip from `@/components/ui/tooltip`, color-coded heat level mapping (Green <30%, Amber 30-70%, Rose >70%), and heat bar fills
+- [x] PhaseStepper: vertical status buttons with color borders (NVIDIA green, cyan, muted) and status icons (Check, Spinner, Circle) matching project phases
+- [x] MetricCard: hover lift animation, top theme bar, ArrowUp/ArrowDown trend indicators, and title/description metadata
+- [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
+- [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
+- [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
 
 ### ✅ Existing Implementation (pre-specs)
 - Next.js 16 frontend builds clean (3.9s)

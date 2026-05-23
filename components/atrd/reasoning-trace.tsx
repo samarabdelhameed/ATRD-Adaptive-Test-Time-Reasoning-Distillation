@@ -17,8 +17,11 @@ interface ReasoningTraceProps {
 }
 
 export function ReasoningTrace({ steps, className }: ReasoningTraceProps) {
-  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({
-    "0": true, // Expand first step by default
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>(() => {
+    if (steps && steps.length > 0) {
+      return { [steps[0].id]: true };
+    }
+    return {};
   });
 
   const toggleStep = (id: string) => {
