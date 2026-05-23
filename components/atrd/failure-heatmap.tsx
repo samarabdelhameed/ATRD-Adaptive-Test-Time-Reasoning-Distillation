@@ -52,8 +52,7 @@ export function FailureHeatmap({ categories, className }: FailureHeatmapProps) {
           return (
             <Tooltip key={cat.id}>
               <TooltipTrigger>
-                <button
-                  type="button"
+                <div
                   className={cn(
                     "flex flex-col gap-2 p-3 rounded-lg border bg-surface/40 hover:bg-surface/70 cursor-help transition-all duration-300 text-left w-full",
                     heatBg
@@ -82,7 +81,7 @@ export function FailureHeatmap({ categories, className }: FailureHeatmapProps) {
                       style={{ width: `${heatPercent}%`, opacity: 0.8 }}
                     />
                   </div>
-                </button>
+                </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[220px] bg-elevated border border-default p-2 text-xs text-text-secondary">
                 <p className="font-semibold text-text-primary mb-1">{cat.name}</p>
