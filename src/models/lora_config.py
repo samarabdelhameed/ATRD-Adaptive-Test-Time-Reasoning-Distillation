@@ -12,6 +12,28 @@ from typing import Any, Dict, Optional
 from peft import LoraConfig, TaskType
 
 
+def validate_lora_config(config: dict) -> None:
+    """Validate LoRA configuration meets competition constraints.
+
+    Args:
+        config: LoRA configuration dict.
+
+    Raises:
+        AssertionError: If any constraint is violated.
+    """
+    assert config.get("r", 0) <= 32, (
+        f"LoRA rank {config['r']} exceeds competition maximum of 32. "
+        "This would result in disqualification."
+    )
+    assert config.get("lora_alpha", 0) >= config.get("r", 0), (
+        f"Alpha ({config['lora_alpha']}) must be >= rank ({config['r']})"
+    )
+    assert config.get("lora_dropout", 0) < 0.5, (
+        f"Dropout ({config['lora_dropout']}) too high for small datasets"
+    )
+    print(f"✓ LoRA config validated: rank={config['r']}, alpha={config['lora_alpha']}")
+
+
 def create_lora_config(
     config_path: str = "configs/base_lora.json",
     override: Optional[Dict[str, Any]] = None,

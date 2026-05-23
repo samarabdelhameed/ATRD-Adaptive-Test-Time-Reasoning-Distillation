@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 08-qlora-model-setup.md
+- 🔄 Implementing 09-sft-training-execution.md
 
 ## Current Goal
 
-- Complete 08-qlora-model-setup.md implementation (verify exit gate → mark complete → move to 09)
+- Complete 09-sft-training-execution.md implementation (verify exit gate → mark complete → move to 10)
 
 ## Completed
 
@@ -56,6 +56,20 @@ Update this file after every meaningful implementation change.
 - [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
+
+### ✅ 08-qlora-model-setup.md — Completed
+
+**loader.py:**
+- [x] load_model_with_cleanup() — memory clearing + GPU usage reporting + 14 GB warning
+- [x] setup_blackwell_optimizations() — TF32 for compute capability ≥ 10.x, memory fraction 85%
+- [x] enable_gradient_checkpointing() — trades compute for memory
+- [x] 4-bit NF4 quantization with double quant + bfloat16
+- [x] Tokenizer: pad_token = eos_token, padding_side = "right"
+
+**lora_config.py:**
+- [x] validate_lora_config() — enforces r≤32, alpha≥rank, dropout<0.5
+- [x] create_lora_config() — loads from JSON, enforces rank constraint
+- [x] validate_adapter() — validates saved adapter_config.json
 
 ### ✅ 07-data-curation-notebook.md — Completed
 

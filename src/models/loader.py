@@ -1,8 +1,7 @@
-"""
-Model Loader
+"""Model loader with 4-bit NF4 quantization for Nemotron-3-Nano-30B.
 
-Handles loading the Nemotron-3-Nano-30B base model with
-quantization and memory optimization for Kaggle T4 GPUs.
+Handles model loading with BitsAndBytes quantization, GPU memory
+management, Blackwell-specific optimizations, and gradient checkpointing.
 """
 
 import json
@@ -10,6 +9,84 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
+
+
+def load_model_with_cleanup(
+    model_name: str,
+    quantize: bool = True,
+    device_map: str = "auto",
+    torch_dtype: Optional[torch.dtype] = None,
+) -> Any:
+    """Load model with memory cleanup and GPU usage reporting.
+
+    Args:
+        model_name: HuggingFace model identifier.
+        quantize: Whether to apply 4-bit quantization.
+        device_map: Device mapping strategy.
+        torch_dtype: Override torch dtype (default: bf16).
+
+    Returns:
+        Loaded model.
+    """
+    from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+
+    if torch_dtype is None:
+        torch_dtype = torch.bfloat16
+
+    model_kwargs: Dict[str, Any] = {
+        "torch_dtype": torch_dtype,
+        "device_map": device_map,
+        "trust_remote_code": True,
+    }
+
+    if quantize:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch_dtype,
+            bnb_4bit_use_double_quant=True,
+        )
+        model_kwargs["quantization_config"] = bnb_config
+
+    print(f"Loading model: {model_name}")
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        **model_kwargs,
+    )
+
+    allocated = torch.cuda.memory_allocated() / 1e9
+    print(f"GPU memory: {allocated:.2f} GB")
+    if allocated > 14:
+        print("WARNING: Near memory limit. Reduce batch size.")
+    return model
+
+
+def setup_blackwell_optimizations() -> None:
+    """Configure CUDA for RTX PRO 6000 Blackwell GPU.
+
+    Enables TF32 matmul if compute capability >= 10.x
+    and sets memory fraction to 85% per competition params.
+    """
+    if not torch.cuda.is_available():
+        print("CUDA not available, skipping Blackwell optimizations")
+        return
+
+    device = torch.cuda.current_device()
+    props = torch.cuda.get_device_properties(device)
+
+    print(f"GPU: {props.name}")
+    print(f"Compute Capability: {props.major}.{props.minor}")
+
+    if props.major >= 10:
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print("Blackwell TF32 optimizations enabled")
+
+    torch.cuda.set_per_process_memory_fraction(0.85)
+    print("Memory fraction set to 85%")
 
 
 class ModelLoader:
@@ -44,30 +121,8 @@ class ModelLoader:
         Returns:
             Loaded model ready for LoRA attachment.
         """
-        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
-
-        if torch_dtype is None:
-            torch_dtype = torch.bfloat16
-
-        model_kwargs: Dict[str, Any] = {
-            "torch_dtype": torch_dtype,
-            "device_map": device_map,
-            "trust_remote_code": True,
-        }
-
-        if quantize:
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch_dtype,
-                bnb_4bit_use_double_quant=True,
-            )
-            model_kwargs["quantization_config"] = bnb_config
-
-        print(f"Loading model: {self.model_name}")
-        model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            **model_kwargs,
+        model = load_model_with_cleanup(
+            self.model_name, quantize, device_map, torch_dtype
         )
         print(f"Model loaded. Parameters: {model.num_parameters():,}")
         return model
@@ -89,6 +144,11 @@ class ModelLoader:
             tokenizer.pad_token_id = tokenizer.eos_token_id
         tokenizer.padding_side = "right"
         return tokenizer
+
+    def enable_gradient_checkpointing(self, model: Any) -> None:
+        """Enable gradient checkpointing to trade compute for memory."""
+        model.gradient_checkpointing_enable()
+        print("Gradient checkpointing enabled — trading compute for memory")
 
     def get_model_info(self) -> Dict[str, Any]:
         """Return model configuration summary.

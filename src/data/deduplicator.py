@@ -64,7 +64,7 @@ class MinHash:
         Returns:
             List of NUM_PERMUTATIONS hash values.
         """
-        sig: List[int] = [self.p] * self.num_perm
+        sig: List[int] = [2**31 - 1] * self.num_perm
         for shingle in shingles:
             h = hash(shingle) & 0xFFFFFFFF
             for i in range(self.num_perm):
@@ -186,13 +186,13 @@ class Deduplicator:
         for sig_idx, (orig_idx, sig) in enumerate(signatures):
             candidates = lsh.get_candidates(sig, sig_idx)
             for cand_idx in candidates:
-                if cand_idx in near_dup_ids:
+                if cand_idx >= len(signatures):
                     continue
                 cand_sig = signatures[cand_idx][1]
                 sim = MinHash.jaccard(sig, cand_sig)
                 if sim > self.similarity_threshold:
                     near_dup_ids.add(sig_idx)
-                    break
+                    near_dup_ids.add(cand_idx)
 
         final: List[Dict[str, Any]] = [
             ex for i, ex in enumerate(unique) if i not in near_dup_ids
