@@ -40,14 +40,24 @@ class GRPOTrainerWrapper:
 
         def reward_fn(
             completions: List[str],
-            ground_truth: Optional[str] = None,
+            ground_truth: Optional[Any] = None,
+            **kwargs
         ) -> List[float]:
             rewards = []
-            for completion in completions:
+            for i, completion in enumerate(completions):
+                # Retrieve the correct ground truth for this index
+                gt = ""
+                if ground_truth is not None:
+                    if isinstance(ground_truth, list):
+                        if i < len(ground_truth):
+                            gt = ground_truth[i]
+                    else:
+                        gt = ground_truth
+
                 if use_prm:
                     score = compute_prm_guided_reward(
                         completion=completion,
-                        ground_truth=ground_truth or "",
+                        ground_truth=str(gt) if gt is not None else "",
                         ref_model=ref_model,
                         current_model=self.model,
                         tokenizer=self.tokenizer,
@@ -60,9 +70,9 @@ class GRPOTrainerWrapper:
                     if "<<thinking>>" in completion and "</thinking>>" in completion:
                         score += 0.2
 
-                    if ground_truth:
+                    if gt:
                         extracted = _extract_boxed_answer(completion)
-                        if _check_answer(extracted, ground_truth, tolerance):
+                        if _check_answer(extracted, str(gt), tolerance):
                             score += 0.8
 
                     if _detect_redundancy(completion):
@@ -118,6 +128,31 @@ class GRPOTrainerWrapper:
         self.tokenizer.save_pretrained(str(save_path))
         print(f"GRPO adapter saved to {save_path}")
         return save_path
+
+    def save_training_log(
+        self,
+        reward_history: List[float],
+        kl_history: Optional[List[float]] = None,
+        log_dir: str = "logs",
+    ) -> Path:
+        """Save step-level reward and KL trajectories to grpo_rewards.json."""
+        log_path = Path(log_dir)
+        log_path.mkdir(parents=True, exist_ok=True)
+        output_file = log_path / "grpo_rewards.json"
+
+        log_data = {
+            "reward_trajectory": reward_history,
+            "kl_trajectory": kl_history or [],
+            "total_steps": len(reward_history),
+            "mean_reward": sum(reward_history) / max(len(reward_history), 1),
+            "monotonic_improvement": verify_monotonic_reward(reward_history),
+        }
+
+        with open(output_file, "w") as f:
+            json.dump(log_data, f, indent=2)
+
+        print(f"GRPO training log saved to {output_file}")
+        return output_file
 
 
 class KLMonitor:
