@@ -39,8 +39,9 @@ def run_sft_training(
             "Run `python run_pipeline.py --phase p1_data` first."
         )
 
+    from src.models.loader import setup_blackwell_optimizations
+    setup_blackwell_optimizations()
     loader = ModelLoader("configs/competition_params.json")
-    loader.setup_blackwell_optimizations()
     tokenizer = loader.load_tokenizer()
     model = loader.load_model(quantize=True)
     loader.enable_gradient_checkpointing(model)
