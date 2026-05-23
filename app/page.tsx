@@ -3,18 +3,10 @@
 import React, { useState, useEffect } from "react";
 import {
   Brain,
-  Cpu,
-  Database,
-  TrendingUp,
-  Clock,
-  Sparkles,
-  GitBranch,
-  Shield,
   FileCode,
   Folder,
   Terminal,
-  Activity,
-  Award
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NeuralPulse } from "@/components/atrd/neural-pulse";
@@ -31,11 +23,17 @@ export default function Home() {
   // State for interactive features
   const [activePhaseId, setActivePhaseId] = useState<string>("p4");
   const [budgetValue, setBudgetValue] = useState<number>(4096);
-  const [logLogs, setLogLogs] = useState<string[]>([]);
+  const [logLogs, setLogLogs] = useState<string[]>([
+    "SYSTEM: Base model nvidia/NVIDIA-Nemotron-3-Nano-30B initialized.",
+    "TELEMETRY: Accuracy score evaluated at 94.2% matching validation run #14.",
+    "LOADER: SFT Adapter checkpoints parsed successfully.",
+    "INFERENCE: Budget forcing engine active. Standing by for API prompts...",
+    "SYSTEM: Memory usage stable at 82% of RTX PRO 6000 bounds.",
+  ]);
   const [activeFile, setActiveFile] = useState<string>("src/inference/budget_forcer.py");
 
   // Telemetry phase definitions
-  const [phases, setPhases] = useState<Phase[]>([
+  const phases: Phase[] = [
     {
       id: "p1",
       name: "Data Curation",
@@ -60,7 +58,7 @@ export default function Home() {
       description: "Adaptive compute scaling at test-time.",
       status: "active",
     },
-  ]);
+  ];
 
   // Failure categories for the heatmap
   const failureCategories: FailureCategory[] = [
@@ -230,20 +228,10 @@ export default function Home() {
 
   // Log simulation feed
   useEffect(() => {
-    const messages = [
-      "SYSTEM: Base model nvidia/NVIDIA-Nemotron-3-Nano-30B initialized.",
-      "TELEMETRY: Accuracy score evaluated at 94.2% matching validation run #14.",
-      "LOADER: SFT Adapter checkpoints parsed successfully.",
-      "INFERENCE: Budget forcing engine active. Standing by for API prompts...",
-      "SYSTEM: Memory usage stable at 82% of RTX PRO 6000 bounds.",
-    ];
-
-    setLogLogs(messages);
-
     const interval = setInterval(() => {
       const liveUpdates = [
         `INFERENCE: Allocated ${budgetValue} token budget for math validation sub-tasks.`,
-        `TELEMETRY: Latency estimated at ${getDynamicLatency()}s per prompt evaluation.`,
+        `TELEMETRY: Latency estimated at ${((budgetValue / 7680) * 14.5 + 2.1).toFixed(1)}s per prompt evaluation.`,
         "SYSTEM: GRPO agent policy update iteration #402 complete.",
         "MONITOR: Log trace verified. Format compliance checks passed (100%).",
       ];

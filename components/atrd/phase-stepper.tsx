@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Circle, Loader2, Play } from "lucide-react";
+import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 
 export interface Phase {
   id: string;
