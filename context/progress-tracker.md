@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 04-baseline-evaluation.md
+- 🔄 Implementing 05-synthetic-data-generation.md
 
 ## Current Goal
 
-- Complete 04-baseline-evaluation.md implementation (verify exit gate → mark complete → move to 05)
+- Complete 05-synthetic-data-generation.md implementation (verify exit gate → mark complete → move to 06)
 
 ## Completed
 
@@ -56,6 +56,14 @@ Update this file after every meaningful implementation change.
 - [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
+
+### ✅ 04-baseline-evaluation.md — Completed
+
+- [x] Baseline Evaluator (`src/evaluation/baseline.py`): Zero-shot evaluation runner targeting `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16` with parameter freezing (`temp=0.0`, `max_tokens=7680`, `top_p=1.0`)
+- [x] Prompt structure alignment: Prompt format containing prompt text, `<<thinking>>`, and output answer block `Answer: \boxed{}`
+- [x] Schema compliance: Generate standard evaluation results structure (question, predictions, answers, and classifications) in `logs/p1_baseline_eval.json` and `logs/baseline_results.json`
+- [x] Failure Mode Taxonomy: Programmatic classification of failures into five distinct modes: `format_violation`, `early_termination`, `reasoning_loop`, `arithmetic_error`, and `algebraic_error`
+- [x] Accuracy Metric (`src/evaluation/metric.py`): Nested brace support, exact match fallback, and numerical tolerance calculations
 
 ### ✅ Existing Implementation (pre-specs)
 - Next.js 16 frontend builds clean (3.9s)
