@@ -60,16 +60,17 @@ class TestModelSetup(unittest.TestCase):
         self.config_dir.mkdir(exist_ok=True)
         self.params_file = self.config_dir / "competition_params.json"
         
-        # Ensure competition params exist
-        with open(self.params_file, "w") as f:
-            json.dump({
-                "model_name": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
-                "max_lora_rank": 32,
-                "max_tokens": 7680,
-                "max_model_len": 8192,
-                "inference_engine": "vllm",
-                "gpu_memory_utilization": 0.85
-            }, f)
+        # Ensure competition params exist without overwriting
+        if not self.params_file.exists():
+            with open(self.params_file, "w") as f:
+                json.dump({
+                    "model_name": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
+                    "max_lora_rank": 32,
+                    "max_tokens": 7680,
+                    "max_model_len": 8192,
+                    "inference_engine": "vllm",
+                    "gpu_memory_utilization": 0.85
+                }, f)
 
         # Base LoRA config file
         self.lora_file = self.config_dir / "base_lora.json"

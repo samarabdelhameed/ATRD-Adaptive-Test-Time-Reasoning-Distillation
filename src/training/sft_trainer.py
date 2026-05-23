@@ -67,14 +67,24 @@ class SFTTrainerWrapper:
         """Format a single example into the model's expected format.
 
         Args:
-            example: Dict with 'prompt' and 'completion'.
+            example: Dict containing training keys (question, thinking_trace, answer or prompt, completion).
 
         Returns:
             Formatted text string.
         """
-        prompt = example.get("prompt", "")
-        completion = example.get("completion", "")
-        return f"<|begin_of_text|>{prompt}\n\n{completion}<|end_of_text|>"
+        prompt = example.get("question", example.get("prompt", ""))
+        
+        if "thinking_trace" in example:
+            thinking = example["thinking_trace"]
+            answer = example.get("answer", "")
+            return f"<|begin_of_text|>{prompt}\n\n{thinking}\n\nAnswer: {answer}<|end_of_text|>"
+        elif "completion" in example:
+            completion = example["completion"]
+            return f"<|begin_of_text|>{prompt}\n\n{completion}<|end_of_text|>"
+        else:
+            thinking = "<<thinking>>\n[Reason step by step]\n</thinking>>"
+            answer = example.get("answer", "")
+            return f"<|begin_of_text|>{prompt}\n\n{thinking}\n\nAnswer: {answer}<|end_of_text|>"
 
     def train(
         self,
@@ -148,3 +158,40 @@ class SFTTrainerWrapper:
         self.tokenizer.save_pretrained(str(save_path))
         print(f"Adapter saved to {save_path}")
         return save_path
+
+
+def should_early_stop(loss_history: List[float], patience: int = 3) -> bool:
+    """Stop if validation loss plateaus for `patience` evaluations.
+
+    Args:
+        loss_history: List of evaluation losses.
+        patience: Validation patience step limit.
+
+    Returns:
+        True if training should stop.
+    """
+    if len(loss_history) < patience + 1:
+        return False
+    recent = loss_history[-patience:]
+    return max(recent) - min(recent) < 0.01 + 1e-9  # Plateau threshold
+
+
+def test_generation(model: Any, tokenizer: Any, prompt: str) -> str:
+    """Run generation sample test on trained model.
+
+    Args:
+        model: Loaded model with adapter.
+        tokenizer: Configured tokenizer.
+        prompt: Question text.
+
+    Returns:
+        Generated model output string.
+    """
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=512,
+        temperature=0.0,
+        do_sample=False,
+    )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
