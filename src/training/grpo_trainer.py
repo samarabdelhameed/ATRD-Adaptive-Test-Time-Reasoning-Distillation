@@ -29,9 +29,14 @@ class GRPOTrainerWrapper:
         self,
         answer_key: str = "answer",
         tolerance: Optional[float] = None,
+        use_prm: bool = True,
+        use_log_ratio: bool = False,
+        ref_model: Optional[Any] = None,
     ) -> Callable:
         if tolerance is None:
             tolerance = self.competition_config.get("numerical_tolerance", 0.01)
+
+        from src.training.prm import compute_prm_guided_reward
 
         def reward_fn(
             completions: List[str],
@@ -39,22 +44,32 @@ class GRPOTrainerWrapper:
         ) -> List[float]:
             rewards = []
             for completion in completions:
-                score = 0.0
+                if use_prm:
+                    score = compute_prm_guided_reward(
+                        completion=completion,
+                        ground_truth=ground_truth or "",
+                        ref_model=ref_model,
+                        current_model=self.model,
+                        tokenizer=self.tokenizer,
+                        use_log_ratio=use_log_ratio,
+                    )
+                else:
+                    score = 0.0
+                    if "\\boxed{" in completion:
+                        score += 0.2
+                    if "<<thinking>>" in completion and "</thinking>>" in completion:
+                        score += 0.2
 
-                if "\\boxed{" in completion:
-                    score += 0.2
-                if "<<thinking>>" in completion and "</thinking>>" in completion:
-                    score += 0.2
+                    if ground_truth:
+                        extracted = _extract_boxed_answer(completion)
+                        if _check_answer(extracted, ground_truth, tolerance):
+                            score += 0.8
 
-                if ground_truth:
-                    extracted = _extract_boxed_answer(completion)
-                    if _check_answer(extracted, ground_truth, tolerance):
-                        score += 0.8
+                    if _detect_redundancy(completion):
+                        score -= 0.3
 
-                if _detect_redundancy(completion):
-                    score -= 0.3
-
-                rewards.append(max(-1.0, min(1.0, score)))
+                    score = max(-1.0, min(1.0, score))
+                rewards.append(score)
             return rewards
 
         return reward_fn

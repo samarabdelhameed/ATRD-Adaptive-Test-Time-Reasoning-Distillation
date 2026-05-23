@@ -8,10 +8,11 @@ Update this file after every meaningful implementation change.
 - ✅ 02-dashboard-layout.md — Completed
 - ✅ 03-atrd-custom-components.md — Completed
 - ✅ Full Frontend Integration & User Journey — Completed
+- ✅ 11-implicit-prm-setup.md — Completed (All unit tests passed successfully)
 
 ## Current Goal
 
-- Final validation of submission compliance and pipeline correctness.
+- Specs 12–19 review and testing
 
 ## Completed
 
@@ -29,7 +30,7 @@ Update this file after every meaningful implementation change.
 | 08 | `qlora-model-setup.md` | ✅ |
 | 09 | `sft-training-execution.md` | ✅ |
 | 10 | `sft-training-notebook.md` | ✅ |
-| 11 | `implicit-prm-setup.md` | ✅ (FIXED: heuristic PRM primary, log-ratio optional) |
+| 11 | `implicit-prm-setup.md` | ✅ (src/training/prm.py: heuristic + log-ratio PRM, composite reward, test_prm_correlation) |
 | 12 | `grpo-training-loop.md` | ✅ |
 | 13 | `grpo-training-notebook.md` | ✅ |
 | 14 | `budget-forcing.md` | ✅ (FIXED: data-gen-only, removed Wait injection, multi-stage refinement) |
@@ -136,6 +137,21 @@ Update this file after every meaningful implementation change.
 - [x] Difficulty estimation using math indicator heuristics
 - [x] save_dataset() defaulting to raw_synthetic_dataset.jsonl
 - [x] dataset_statistics() for per-mode counts
+
+### ✅ 11-implicit-prm-setup.md — Completed
+
+- [x] `heuristic_step_score()`: scores each step via regex (math transitions +0.2, logical connectors +0.2, valid equations +0.3, repetition penalty -0.3)
+- [x] `segment_thinking_trace()`: splits completion into steps, excludes `\boxed{}` line
+- [x] `get_log_prob()`: computes mean log-probability for a text (torch-dependent)
+- [x] `compute_log_ratio_score()`: log-prob ratio with sigmoid, graceful OOM → None
+- [x] `check_answer()`: extracts boxed answer, compares with tolerance
+- [x] `detect_redundancy()`: flags repeated line patterns (3+ repeats over 2-line window)
+- [x] `compute_prm_guided_reward()`: composite = answer (0.8) + format (0.4) + PRM (0.4 × mean step score) + redundancy (-0.3), clamped to [-1, 1]
+- [x] `test_prm_correlation()`: raises `FileNotFoundError` on missing real data (no mock)
+- [x] Zero GPU overhead by default (heuristic mode); log-ratio optional with fallback
+- [x] Next.js build: ✅ (clean, 2.4s)
+- [x] Python syntax: ✅
+- [x] 10/10 functional tests pass with zero mock data
 
 ### ✅ Existing Implementation (pre-specs)
 - Next.js 16 frontend builds clean (3.9s)
