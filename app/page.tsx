@@ -75,14 +75,7 @@ export default function Home() {
   // Phase 1 Judge Sub-state
   const [isFiltering, setIsFiltering] = useState<boolean>(false);
   const [filterProgress, setFilterProgress] = useState<number>(0);
-  const [judgeDataset, setJudgeDataset] = useState<any[]>([
-    { id: 1, question: "∫ x^2 dx from 0 to 3", correctness: 1.0, clarity: 0.9, difficulty: 0.3, format: 1.0, score: 0.79, status: "pending" },
-    { id: 2, question: "Area under y = xe^{-x} for x >= 0", correctness: 0.4, clarity: 0.3, difficulty: 0.9, format: 0.0, score: 0.23, status: "pending" },
-    { id: 3, question: "Verify lim_{x->0} (sin x)/x = 1", correctness: 1.0, clarity: 0.8, difficulty: 0.5, format: 1.0, score: 0.74, status: "pending" },
-    { id: 4, question: "Calculate derivative of ln(x^2 + 1)", correctness: 0.9, clarity: 0.7, difficulty: 0.4, format: 1.0, score: 0.71, status: "pending" },
-    { id: 5, question: "Solve trigonometric inequality cos(x) > 0.5", correctness: 0.2, clarity: 0.1, difficulty: 0.6, format: 0.0, score: 0.13, status: "pending" },
-    { id: 6, question: "Compute surface area of sphere r=5", correctness: 1.0, clarity: 0.95, difficulty: 0.2, format: 1.0, score: 0.81, status: "pending" }
-  ]);
+  const [judgeDataset, setJudgeDataset] = useState<any[]>([]);
 
   // Phase 1 Mixing Sub-state
   const [mixerStats, setMixerStats] = useState({

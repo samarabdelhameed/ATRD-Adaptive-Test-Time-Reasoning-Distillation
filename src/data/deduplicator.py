@@ -37,6 +37,8 @@ def _get_shingles(text: str, n: int = N_GRAM_SIZE) -> Set[str]:
         Set of n-gram shingles.
     """
     text = text.lower().strip()
+    if len(text) < n:
+        return {text} if text else set()
     return {text[i: i + n] for i in range(len(text) - n + 1)}
 
 
@@ -64,7 +66,7 @@ class MinHash:
         Returns:
             List of NUM_PERMUTATIONS hash values.
         """
-        sig: List[int] = [2**31 - 1] * self.num_perm
+        sig: List[int] = [self.p] * self.num_perm  # Use prime modulus as initial max
         for shingle in shingles:
             h = hash(shingle) & 0xFFFFFFFF
             for i in range(self.num_perm):
@@ -177,6 +179,7 @@ class Deduplicator:
             sig = self.minhash.signature(shingles)
             signatures.append((idx, sig))
             unique.append(example)
+            self.seen_hashes.add(content_hash)
 
         self.seen_hashes.clear()
 

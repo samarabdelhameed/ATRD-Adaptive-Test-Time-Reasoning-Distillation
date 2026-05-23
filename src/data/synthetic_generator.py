@@ -57,26 +57,48 @@ class GeneratorConfig:
 
 
 FAILURE_MODE_DESCRIPTIONS: Dict[str, str] = {
+    # Baseline taxonomy (notebook 01 / METHODOLOGY)
+    "no_answer": (
+        "The model fails to produce a final answer in \\boxed{} format."
+    ),
+    "incomplete": (
+        "The model stops before completing the required reasoning trace."
+    ),
+    "format_error": (
+        "The model produces malformed \\boxed{} notation or missing "
+        "<<thinking>> tags."
+    ),
+    "wrong_answer": (
+        "The model produces a final answer that is mathematically incorrect."
+    ),
+    "proof_structure": (
+        "The reasoning lacks logical step-by-step structure or skips key steps."
+    ),
+    # Legacy / API aliases (backward compatible)
     "reasoning_loop": (
-        "The model gets stuck repeating mathematical assertions "
-        "without progressing toward a solution."
+        "The model gets stuck repeating assertions without progressing."
     ),
     "format_violation": (
         "The completion lacks the required \\boxed{} answer block "
         "or <<thinking>> tags."
     ),
     "early_termination": (
-        "The model halts generation before arriving at a final "
-        "mathematical value."
+        "The model halts generation before arriving at a final value."
     ),
     "calculation_error": (
-        "The model makes arithmetic errors inside intermediate "
-        "reasoning traces."
+        "The model makes arithmetic errors in intermediate reasoning."
     ),
     "misinterpretation": (
-        "The model misreads or misinterprets the problem statement, "
-        "solving a different question than asked."
+        "The model misreads the problem and solves a different question."
     ),
+}
+
+# Map notebook tags to canonical keys for description lookup
+FAILURE_MODE_ALIASES: Dict[str, str] = {
+    "format_violation": "format_error",
+    "early_termination": "incomplete",
+    "calculation_error": "wrong_answer",
+    "reasoning_loop": "proof_structure",
 }
 
 
@@ -137,8 +159,12 @@ class SyntheticGenerator:
         """
         all_problems: List[Dict[str, Any]] = []
         for mode, examples in failure_examples.items():
+            canonical = FAILURE_MODE_ALIASES.get(mode, mode)
             description = FAILURE_MODE_DESCRIPTIONS.get(
-                mode, "General reasoning difficulty."
+                canonical,
+                FAILURE_MODE_DESCRIPTIONS.get(
+                    mode, "General reasoning difficulty."
+                ),
             )
             n = min(problems_per_mode, len(examples) * 50)
             batch = self._generate_for_mode(mode, description, examples, n)
@@ -378,11 +404,9 @@ class SyntheticGenerator:
 
     def _check_answer(self, expected: str, predicted: str) -> bool:
         """Check if predicted answer matches expected within tolerance."""
-        tolerance = self.config.get("numerical_tolerance", 0.01)
-        try:
-            return abs(float(expected) - float(predicted)) <= tolerance
-        except (ValueError, TypeError):
-            return expected.strip() == predicted.strip()
+        from src.evaluation.metric import answers_equivalent
+
+        return answers_equivalent(predicted, expected)
 
     def _classify_failure(self, response: Dict[str, Any]) -> str:
         """Classify the type of failure in a model response."""
@@ -427,8 +451,10 @@ class SyntheticGenerator:
         Returns:
             List of synthetic problem dicts.
         """
+        canonical = FAILURE_MODE_ALIASES.get(mode, mode)
         description = FAILURE_MODE_DESCRIPTIONS.get(
-            mode, "General reasoning difficulty."
+            canonical,
+            FAILURE_MODE_DESCRIPTIONS.get(mode, "General reasoning difficulty."),
         )
         prompt = SYSTEM_PROMPT.format(
             failure_description=description,

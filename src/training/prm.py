@@ -1,11 +1,15 @@
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    import torch
 
 try:
-    import torch
+    import torch as _torch
+    torch = _torch
 except ImportError:
-    torch = None
+    torch = None  # type: ignore[assignment]
 
 
 def heuristic_step_score(step: str) -> float:
@@ -30,10 +34,12 @@ def segment_thinking_trace(completion: str) -> List[str]:
 
 
 def get_log_prob(
-    model: torch.nn.Module,
+    model: "torch.nn.Module",
     text: str,
     tokenizer,
-) -> torch.Tensor:
+) -> "torch.Tensor":
+    if torch is None:
+        raise RuntimeError("torch is required for log-ratio PRM scoring")
     inputs = tokenizer(text, return_tensors="pt").to(model.device)
     with torch.no_grad():
         outputs = model(**inputs)
@@ -46,10 +52,12 @@ def get_log_prob(
 def compute_log_ratio_score(
     step: str,
     context: str,
-    ref_model: torch.nn.Module,
-    current_model: torch.nn.Module,
+    ref_model: "torch.nn.Module",
+    current_model: "torch.nn.Module",
     tokenizer,
 ) -> Optional[float]:
+    if torch is None:
+        return None
     try:
         ref_log_prob = get_log_prob(ref_model, context + step, tokenizer)
         cur_log_prob = get_log_prob(current_model, context + step, tokenizer)
@@ -63,16 +71,15 @@ def compute_log_ratio_score(
 
 
 def _extract_boxed_answer(text: str) -> str:
-    pattern = r"\\boxed\{([^}]*)\}"
-    match = re.search(pattern, text)
-    return match.group(1).strip() if match else ""
+    from src.evaluation.metric import extract_boxed_answer
+
+    return extract_boxed_answer(text)
 
 
 def _check_answer(predicted: str, expected: str, tolerance: float = 0.01) -> bool:
-    try:
-        return abs(float(predicted) - float(expected)) <= tolerance
-    except (ValueError, TypeError):
-        return predicted.strip() == expected.strip()
+    from src.evaluation.metric import answers_equivalent
+
+    return answers_equivalent(predicted, expected, tolerance)
 
 
 def check_answer(completion: str, ground_truth: str) -> bool:
@@ -94,8 +101,8 @@ def detect_redundancy(completion: str) -> bool:
 def compute_prm_guided_reward(
     completion: str,
     ground_truth: str,
-    ref_model: Optional[torch.nn.Module] = None,
-    current_model: Optional[torch.nn.Module] = None,
+    ref_model: "Optional[torch.nn.Module]" = None,
+    current_model: "Optional[torch.nn.Module]" = None,
     tokenizer=None,
     use_log_ratio: bool = False,
 ) -> float:

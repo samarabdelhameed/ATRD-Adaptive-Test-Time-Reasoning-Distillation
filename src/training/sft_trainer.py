@@ -8,8 +8,15 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import torch
-from datasets import Dataset
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    from datasets import Dataset
+except ImportError:
+    Dataset = None
 
 
 def format_sft_example(example: dict) -> str:

@@ -192,6 +192,25 @@ class DatasetMixer:
         return dist
 
 
+def filter_exact_question_leakage(
+    examples: List[Dict[str, Any]],
+    benchmark_questions: List[str],
+) -> List[Dict[str, Any]]:
+    """Remove training rows whose question exactly matches a benchmark question."""
+    blocked = {q.strip().lower() for q in benchmark_questions if q}
+    kept: List[Dict[str, Any]] = []
+    removed = 0
+    for ex in examples:
+        q = str(ex.get("question", "")).strip().lower()
+        if q in blocked:
+            removed += 1
+            continue
+        kept.append(ex)
+    if removed:
+        print(f"  Removed {removed} examples with exact question overlap to benchmark")
+    return kept
+
+
 def check_leakage(
     train_dataset: List[str],
     test_set: List[str],

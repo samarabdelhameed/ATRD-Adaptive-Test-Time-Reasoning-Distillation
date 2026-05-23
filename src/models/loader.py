@@ -8,14 +8,17 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 
 
 def load_model_with_cleanup(
     model_name: str,
     quantize: bool = True,
     device_map: str = "auto",
-    torch_dtype: Optional[torch.dtype] = None,
+    torch_dtype: "Any" = None,
 ) -> Any:
     """Load model with memory cleanup and GPU usage reporting.
 
@@ -119,7 +122,7 @@ class ModelLoader:
         self,
         quantize: bool = True,
         device_map: str = "auto",
-        torch_dtype: Optional[torch.dtype] = None,
+        torch_dtype: "Any" = None,
     ) -> Any:
         """Load the base model with optional quantization.
 
@@ -173,3 +176,12 @@ class ModelLoader:
             "inference_engine": self.config["inference_engine"],
             "gpu_memory_utilization": self.config["gpu_memory_utilization"],
         }
+
+
+def enable_gradient_checkpointing(model: Any) -> None:
+    """Enable gradient checkpointing on a model. Module-level convenience wrapper.
+
+    Args:
+        model: The model to enable gradient checkpointing on.
+    """
+    model.gradient_checkpointing_enable()

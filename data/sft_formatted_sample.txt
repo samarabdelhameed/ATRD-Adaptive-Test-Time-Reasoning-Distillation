@@ -1,0 +1,7 @@
+Solve 3x + 5 = 14 for x.
+
+<<thinking>>
+3x=9 => x=3.
+</thinking>>
+
+Answer: \boxed{3}

@@ -2,7 +2,10 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 
 
 class GRPOTrainerWrapper:
@@ -124,18 +127,15 @@ class KLMonitor:
 
 
 def _extract_boxed_answer(text: str) -> str:
-    import re
+    from src.evaluation.metric import extract_boxed_answer
 
-    pattern = r"\\boxed\{([^}]*)\}"
-    match = re.search(pattern, text)
-    return match.group(1).strip() if match else ""
+    return extract_boxed_answer(text)
 
 
 def _check_answer(predicted: str, expected: str, tolerance: float = 0.01) -> bool:
-    try:
-        return abs(float(predicted) - float(expected)) <= tolerance
-    except (ValueError, TypeError):
-        return predicted.strip() == expected.strip()
+    from src.evaluation.metric import answers_equivalent
+
+    return answers_equivalent(predicted, expected, tolerance)
 
 
 def _detect_redundancy(text: str) -> bool:

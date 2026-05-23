@@ -3,13 +3,14 @@
 Verify Unit Completion Gates
 
 Checks phase completion criteria before allowing progression:
-1. Required artifact existence
+1. Required artifact existence (stage-specific)
 2. LoRA rank invariant (rank <= 32)
 3. Protected file integrity
-4. Minimum accuracy thresholds
 
 Usage:
-    python scripts/verify_unit_completion.py P1 baseline
+    python scripts/verify_unit_completion.py P1              # config-only check
+    python scripts/verify_unit_completion.py P1 baseline     # baseline eval artifacts
+    python scripts/verify_unit_completion.py P1 complete     # full data pipeline
     python scripts/verify_unit_completion.py P2 sft
     python scripts/verify_unit_completion.py P3 grpo
     python scripts/verify_unit_completion.py P4 submission
@@ -20,91 +21,111 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-# Phase gate definitions
 PHASE_GATES: Dict[str, Dict] = {
     "P1": {
         "name": "Data Generation",
-        "required_artifacts": [
+        "config_artifacts": [
             "configs/competition_params.json",
             "configs/base_lora.json",
-        ],
-        "optional_artifacts": [
-            "data/synthetic_sft.jsonl",
-            "logs/p1_baseline_eval.json",
         ],
         "description": "Baseline evaluation → Failure extraction → Synthetic generation",
     },
     "P2": {
         "name": "SFT Training",
-        "required_artifacts": [
+        "config_artifacts": [
             "configs/competition_params.json",
             "configs/base_lora.json",
-        ],
-        "optional_artifacts": [
-            "checkpoints/sft/final_adapter/adapter_config.json",
-            "logs/p2_sft_eval.json",
         ],
         "description": "Supervised fine-tuning with synthetic data",
     },
     "P3": {
         "name": "GRPO Training",
-        "required_artifacts": [
+        "config_artifacts": [
             "configs/competition_params.json",
             "configs/base_grpo.json",
-        ],
-        "optional_artifacts": [
-            "checkpoints/grpo/final_adapter/adapter_config.json",
-            "logs/p3_grpo_eval.json",
         ],
         "description": "Group Relative Policy Optimization",
     },
     "P4": {
         "name": "Budget Forcing & Submission",
-        "required_artifacts": [
+        "config_artifacts": [
             "configs/competition_params.json",
         ],
-        "optional_artifacts": [
-            "submission.zip",
-            "logs/p4_final_eval.json",
-        ],
-        "description": "Adaptive budget forcing → Package submission",
+        "description": "Evaluation → Package submission",
     },
 }
 
+# Stage-specific REQUIRED artifacts (must exist to pass)
+STAGE_REQUIRED: Dict[Tuple[str, str], List[str]] = {
+    ("P1", "baseline"): [
+        "data/public_test.jsonl",  # local dev OR produced on Kaggle
+    ],
+    ("P1", "complete"): [
+        "data/final_train_dataset.jsonl",
+    ],
+    ("P2", "sft"): [
+        "checkpoints/sft/final_adapter/adapter_config.json",
+        "data/final_train_dataset.jsonl",
+    ],
+    ("P3", "grpo"): [
+        "checkpoints/sft/final_adapter/adapter_config.json",
+        "checkpoints/grpo/final_adapter/adapter_config.json",
+    ],
+    ("P4", "submission"): [
+        "checkpoints/grpo/final_adapter/adapter_config.json",
+        "submission.zip",
+    ],
+}
 
-def check_artifacts(phase: str) -> Tuple[List[str], List[str]]:
-    """Check required and optional artifact existence.
+# Any one of these satisfies baseline eval requirement
+STAGE_ALTERNATIVES: Dict[Tuple[str, str], List[List[str]]] = {
+    ("P1", "baseline"): [
+        ["data/baseline_results.json"],
+        ["logs/baseline_results.json"],
+    ],
+}
 
-    Args:
-        phase: Phase identifier (P1, P2, P3, P4).
 
-    Returns:
-        Tuple of (missing_required, missing_optional) file lists.
-    """
+def _any_group_exists(groups: List[List[str]]) -> Tuple[bool, str]:
+    for group in groups:
+        if all(Path(p).exists() for p in group):
+            return True, ", ".join(group)
+    return False, ""
+
+
+def check_stage_artifacts(phase: str, stage: str) -> Tuple[List[str], List[str]]:
+    """Return (missing_required, satisfied_notes)."""
+    key = (phase, stage)
+    missing: List[str] = []
+    notes: List[str] = []
+
+    if key in STAGE_ALTERNATIVES:
+        ok, found = _any_group_exists(STAGE_ALTERNATIVES[key])
+        if not ok:
+            missing.append(
+                f"one of: {STAGE_ALTERNATIVES[key]} (baseline evaluation output)"
+            )
+        else:
+            notes.append(f"baseline output: {found}")
+
+    for artifact in STAGE_REQUIRED.get(key, []):
+        if not Path(artifact).exists():
+            missing.append(artifact)
+        else:
+            notes.append(f"found {artifact}")
+
+    return missing, notes
+
+
+def check_config_artifacts(phase: str) -> List[str]:
     gate = PHASE_GATES.get(phase, {})
-    missing_required = []
-    missing_optional = []
-
-    for artifact in gate.get("required_artifacts", []):
-        if not Path(artifact).exists():
-            missing_required.append(artifact)
-
-    for artifact in gate.get("optional_artifacts", []):
-        if not Path(artifact).exists():
-            missing_optional.append(artifact)
-
-    return missing_required, missing_optional
+    return [
+        a for a in gate.get("config_artifacts", [])
+        if not Path(a).exists()
+    ]
 
 
 def check_lora_rank(adapter_path: str = "checkpoints") -> bool:
-    """Verify all LoRA adapters have rank <= 32.
-
-    Args:
-        adapter_path: Base path to search for adapter configs.
-
-    Returns:
-        True if all adapters are compliant.
-    """
     adapter_configs = list(Path(adapter_path).rglob("adapter_config.json"))
 
     if not adapter_configs:
@@ -113,7 +134,7 @@ def check_lora_rank(adapter_path: str = "checkpoints") -> bool:
 
     all_compliant = True
     for config_path in adapter_configs:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
         rank = config.get("r", 0)
         if rank > 32:
@@ -126,41 +147,27 @@ def check_lora_rank(adapter_path: str = "checkpoints") -> bool:
 
 
 def check_protected_files() -> bool:
-    """Verify protected files haven't been modified.
-
-    Returns:
-        True if all protected files are intact.
-    """
-    protected = [
-        "configs/competition_params.json",
-    ]
-
+    protected = ["configs/competition_params.json"]
     for filepath in protected:
         if not Path(filepath).exists():
             print(f"  ✗ Protected file missing: {filepath}")
             return False
         print(f"  ✓ Protected file intact: {filepath}")
-
     return True
 
 
 def main() -> int:
-    """Main entry point for verification.
-
-    Returns:
-        Exit code (0 = pass, 1 = fail).
-    """
     if len(sys.argv) < 2:
         print("Usage: python scripts/verify_unit_completion.py <PHASE> [<STAGE>]")
         print(f"Phases: {', '.join(PHASE_GATES.keys())}")
+        print("Stages: check (default), baseline, complete, sft, grpo, submission")
         return 1
 
     phase = sys.argv[1].upper()
-    stage = sys.argv[2] if len(sys.argv) > 2 else "check"
+    stage = sys.argv[2].lower() if len(sys.argv) > 2 else "check"
 
     if phase not in PHASE_GATES:
         print(f"Unknown phase: {phase}")
-        print(f"Valid phases: {', '.join(PHASE_GATES.keys())}")
         return 1
 
     gate = PHASE_GATES[phase]
@@ -171,35 +178,41 @@ def main() -> int:
 
     all_passed = True
 
-    # Check 1: Artifacts
-    print("1. Artifact Check:")
-    missing_req, missing_opt = check_artifacts(phase)
-    if missing_req:
-        print(f"  ✗ Missing REQUIRED: {missing_req}")
+    print("1. Config Artifact Check:")
+    missing_cfg = check_config_artifacts(phase)
+    if missing_cfg:
+        print(f"  ✗ Missing: {missing_cfg}")
         all_passed = False
     else:
-        print("  ✓ All required artifacts present")
-    if missing_opt:
-        print(f"  ⚠ Missing optional: {missing_opt}")
+        print("  ✓ All config artifacts present")
 
-    # Check 2: LoRA rank
-    print("\n2. LoRA Rank Invariant Check:")
+    if stage != "check":
+        print(f"\n2. Stage Artifact Check ({stage}):")
+        missing_stage, notes = check_stage_artifacts(phase, stage)
+        if missing_stage:
+            print(f"  ✗ Missing REQUIRED:")
+            for m in missing_stage:
+                print(f"      - {m}")
+            all_passed = False
+        else:
+            print("  ✓ All stage artifacts present")
+            for n in notes:
+                print(f"      • {n}")
+
+    print("\n3. LoRA Rank Invariant Check:")
     if not check_lora_rank():
         all_passed = False
 
-    # Check 3: Protected files
-    print("\n3. Protected Files Check:")
+    print("\n4. Protected Files Check:")
     if not check_protected_files():
         all_passed = False
 
-    # Summary
     print(f"\n{'='*60}")
     if all_passed:
-        print(f"✓ PHASE {phase} GATE: PASSED")
-        print(f"  Ready to proceed to next phase.")
+        print(f"✓ PHASE {phase} GATE ({stage}): PASSED")
     else:
-        print(f"✗ PHASE {phase} GATE: FAILED")
-        print(f"  Resolve issues before proceeding.")
+        print(f"✗ PHASE {phase} GATE ({stage}): FAILED")
+        print("  Resolve missing artifacts before proceeding.")
     print(f"{'='*60}\n")
 
     return 0 if all_passed else 1

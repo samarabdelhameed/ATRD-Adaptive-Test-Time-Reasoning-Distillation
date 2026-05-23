@@ -12,6 +12,7 @@ Validates:
 2. LoRA rank <= 32
 3. File size constraints
 4. Required files present
+5. vLLM compatibility (loads adapter and generates output)
 
 Usage:
     python scripts/package_submission.py --adapter-path checkpoints/grpo/final_adapter
@@ -20,12 +21,14 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import sys
 import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+logger = logging.getLogger(__name__)
 
 # Required files in submission
 REQUIRED_FILES = [
@@ -40,6 +43,9 @@ EXPECTED_FILES = [
 
 # Maximum submission size (100 MB)
 MAX_SUBMISSION_SIZE_MB = 100
+
+# Model name for vLLM compatibility test
+MODEL_NAME = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16"
 
 
 def validate_adapter_config(adapter_path: Path) -> Tuple[bool, List[str]]:
@@ -93,6 +99,47 @@ def find_model_files(adapter_path: Path) -> List[Path]:
     return files
 
 
+def test_vllm_compatibility(adapter_path: Path) -> bool:
+    """Verify adapter loads correctly in vLLM.
+
+    Checks if vLLM is installed; if not, logs a warning and skips the test.
+    If vLLM is available, loads the model with the adapter and generates
+    a test response to verify compatibility.
+
+    Args:
+        adapter_path: Path to adapter directory.
+
+    Returns:
+        True if test passes or vLLM is not installed, False on failure.
+    """
+    try:
+        from vllm import LLM, SamplingParams
+    except ImportError:
+        logger.warning("vLLM not installed — skipping compatibility test")
+        return True
+
+    logger.info("Testing vLLM compatibility...")
+    try:
+        engine = LLM(
+            model=MODEL_NAME,
+            adapter=str(adapter_path),
+            max_model_len=8192,
+            gpu_memory_utilization=0.85,
+            enable_lora=True,
+            max_lora_rank=32,
+        )
+        test_prompt = "Solve for x: 2x = 10"
+        outputs = engine.generate(test_prompt, SamplingParams(max_tokens=128))
+        if outputs and outputs[0].outputs and outputs[0].outputs[0].text:
+            logger.info("vLLM test generation successful")
+            return True
+        logger.error("vLLM test generated empty response")
+        return False
+    except Exception as e:
+        logger.error("vLLM compatibility test failed: %s", e)
+        return False
+
+
 def package(
     adapter_path: str,
     output_path: str = "submission.zip",
@@ -110,46 +157,52 @@ def package(
     """
     adapter_dir = Path(adapter_path)
     if not adapter_dir.exists():
-        print(f"✗ Adapter path does not exist: {adapter_dir}")
+        logger.error("Adapter path does not exist: %s", adapter_dir)
         return False
 
-    print(f"Packaging submission from: {adapter_dir}")
-    print(f"Output: {output_path}\n")
+    logger.info("Packaging submission from: %s", adapter_dir)
+    logger.info("Output: %s\n", output_path)
 
     # Validate adapter config
-    print("1. Validating adapter_config.json...")
+    logger.info("1. Validating adapter_config.json...")
     is_valid, errors = validate_adapter_config(adapter_dir)
     if not is_valid:
         for err in errors:
-            print(f"  ✗ {err}")
+            logger.error(err)
         return False
-    print("  ✓ adapter_config.json is valid")
+    logger.info("  ✓ adapter_config.json is valid")
+
+    # Test vLLM compatibility
+    logger.info("Testing vLLM compatibility...")
+    vllm_ok = test_vllm_compatibility(adapter_dir)
+    if not vllm_ok:
+        logger.error("vLLM compatibility test failed — submission may fail at inference")
 
     # Find files
-    print("\n2. Collecting files...")
+    logger.info("2. Collecting files...")
     files = find_model_files(adapter_dir)
     if not files:
-        print("  ✗ No files found in adapter directory")
+        logger.error("No files found in adapter directory")
         return False
 
     total_size_mb = sum(f.stat().st_size for f in files) / (1024 * 1024)
     for f in files:
         size_mb = f.stat().st_size / (1024 * 1024)
-        print(f"  • {f.name} ({size_mb:.2f} MB)")
-    print(f"  Total: {total_size_mb:.2f} MB")
+        logger.info("  • %s (%.2f MB)", f.name, size_mb)
+    logger.info("  Total: %.2f MB", total_size_mb)
 
     if total_size_mb > MAX_SUBMISSION_SIZE_MB:
-        print(f"  ✗ Total size exceeds {MAX_SUBMISSION_SIZE_MB} MB limit")
+        logger.error("Total size exceeds %d MB limit", MAX_SUBMISSION_SIZE_MB)
         return False
 
     # Check for required files
-    print("\n3. Checking required files...")
+    logger.info("3. Checking required files...")
     file_names = {f.name for f in files}
     for req in REQUIRED_FILES:
         if req in file_names:
-            print(f"  ✓ {req}")
+            logger.info("  ✓ %s", req)
         else:
-            print(f"  ✗ Missing: {req}")
+            logger.error("Missing: %s", req)
             return False
 
     # Check for model weights
@@ -158,26 +211,30 @@ def package(
         for f in files
     )
     if not has_weights:
-        print(f"  ⚠ Warning: No model weight file found ({EXPECTED_FILES})")
+        logger.warning("No model weight file found (%s)", EXPECTED_FILES)
 
     if dry_run:
-        print("\n[DRY RUN] Validation complete. No zip created.")
+        logger.info("[DRY RUN] Validation complete. No zip created.")
         return True
 
     # Create zip
-    print(f"\n4. Creating {output_path}...")
+    logger.info("4. Creating %s...", output_path)
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in files:
             zf.write(f, f.name)
-            print(f"  + {f.name}")
+            logger.info("  + %s", f.name)
 
     zip_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-    print(f"\n✓ Submission packaged: {output_path} ({zip_size_mb:.2f} MB)")
+    logger.info("Submission packaged: %s (%.2f MB)", output_path, zip_size_mb)
     return True
 
 
 def main() -> int:
     """Main entry point."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+    )
     parser = argparse.ArgumentParser(
         description="Package LoRA adapter for competition submission"
     )
