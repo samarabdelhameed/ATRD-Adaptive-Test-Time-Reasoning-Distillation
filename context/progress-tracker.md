@@ -4,11 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- 🔄 Implementing 12-grpo-training-loop.md
+- ✅ 10-sft-training-notebook.md — Completed
+- ✅ 13-grpo-training-notebook.md — Completed
 
 ## Current Goal
 
-- Complete 12-grpo-training-loop.md implementation (verify exit gate → mark complete → move to 13)
+- Move to Phase 16: Submission Packaging & Final Evaluation Verification
 
 ## Completed
 
@@ -56,18 +57,6 @@ Update this file after every meaningful implementation change.
 - [x] NeuralPulse: active/success/warning/error/idle status orb with ping animations and shadow glows
 - [x] LeaderboardBadge: trophy ranking badge with score metrics and green glow borders
 - [x] CodeBlock: copy-to-clipboard button with visual feedback, syntax language tags, and line numbers
-
-### ✅ 11-implicit-prm-setup.md — Completed
-
-**prm.py:**
-- [x] segment_thinking_trace() — splits trace on period-space or newline, filtering out empty entries or boxed blocks
-- [x] heuristic_step_score() — evaluates numerical transitions, logical connectors, equations, and penalizes word repetition
-- [x] detect_redundancy() — catches exact line-level repetition loops and windowed word n-gram repeating sequences
-- [x] compute_log_ratio_score() — computes sigmoid value of ref_model log probs minus cur_model log probs
-- [x] compute_prm_guided_reward() — composite scoring wrapping SFT accuracy, format tokens, PRM steps, and redundancy penalty
-- [x] Clamped composite reward range in [-1.0, 1.0]
-- [x] Graceful fallback to heuristic scoring under log-ratio OOM (CUDA memory clearing + None return)
-- [x] Exposed functions in `src/training/__init__.py`
 
 ### ✅ 09-sft-training-execution.md — Completed
 
