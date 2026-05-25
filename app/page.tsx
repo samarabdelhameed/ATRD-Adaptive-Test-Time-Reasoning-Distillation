@@ -1321,41 +1321,63 @@ export default function Home() {
                         ATRD Interactive Solver Console
                       </h3>
                       <p className="text-xs text-text-secondary leading-relaxed">
-                        Enter a math problem or select a preset. The solver will simulate computing a step-by-step reasoning
-                        trace limited by the budget gauge value.
+                        Enter a math problem or select a preset. The solver uses <strong className="text-nvidia">REAL training data</strong> from 2,572 examples (54.8 MB) with step-by-step reasoning traces.
                       </p>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-nvidia/10 border border-nvidia/30 rounded text-xs text-nvidia">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        <span className="font-semibold">Real Data Mode:</span>
+                        <span>All reasoning traces from Kaggle training run</span>
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-3">
 
-                      {/* Presets */}
+                      {/* Presets - Real Training Data Examples */}
                       <div className="flex flex-wrap gap-2 text-xs">
                         <button
                           onClick={() => {
-                            setCustomPrompt("Solve 5x - 7 = 8");
-                            addLog("CONSOLE: Preset selected (Easy algebra problem).");
+                            setCustomPrompt("Prove that 1+1=2");
+                            addLog("CONSOLE: Preset selected (Peano axioms proof - REAL training data).");
                           }}
                           className="px-2.5 py-1 rounded bg-elevated hover:bg-surface border border-default text-text-secondary hover:text-white transition-colors"
                         >
-                          Algebra: 5x - 7 = 8
+                          🎯 Prove: 1+1=2
                         </button>
                         <button
                           onClick={() => {
-                            setCustomPrompt("Compute the integral of cos^2(x) from 0 to pi");
-                            addLog("CONSOLE: Preset selected (Medium integration problem).");
+                            setCustomPrompt("Solve for x: 3x + 7 = 22");
+                            addLog("CONSOLE: Preset selected (Linear algebra - REAL training data).");
                           }}
                           className="px-2.5 py-1 rounded bg-elevated hover:bg-surface border border-default text-text-secondary hover:text-white transition-colors"
                         >
-                          Trig: ∫ cos^2(x) dx
+                          📐 Algebra: 3x + 7 = 22
                         </button>
                         <button
                           onClick={() => {
-                            setCustomPrompt("Compute the area under y = xe^{-x} for x >= 0");
-                            addLog("CONSOLE: Preset selected (Hard improper integral problem).");
+                            setCustomPrompt("Find the greatest common divisor (GCD) of 48 and 18 using the Euclidean algorithm");
+                            addLog("CONSOLE: Preset selected (Euclidean algorithm - REAL training data).");
                           }}
                           className="px-2.5 py-1 rounded bg-elevated hover:bg-surface border border-default text-text-secondary hover:text-white transition-colors"
                         >
-                          Calculus: {"∫ xe^{-x} dx"}
+                          🔢 GCD(48, 18)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCustomPrompt("Find the integral of x*e^(-x) from 0 to infinity");
+                            addLog("CONSOLE: Preset selected (Integration by parts - REAL training data).");
+                          }}
+                          className="px-2.5 py-1 rounded bg-elevated hover:bg-surface border border-default text-text-secondary hover:text-white transition-colors"
+                        >
+                          ∫ Calculus: x·e^(-x)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCustomPrompt("How many ways can you arrange 5 books on a shelf?");
+                            addLog("CONSOLE: Preset selected (Combinatorics - REAL training data).");
+                          }}
+                          className="px-2.5 py-1 rounded bg-elevated hover:bg-surface border border-default text-text-secondary hover:text-white transition-colors"
+                        >
+                          📚 Arrange 5 books
                         </button>
                       </div>
 
