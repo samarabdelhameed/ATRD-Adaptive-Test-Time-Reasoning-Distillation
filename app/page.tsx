@@ -43,8 +43,11 @@ import { FailureHeatmap, FailureCategory } from "@/components/atrd/failure-heatm
 import { LeaderboardBadge } from "@/components/atrd/leaderboard-badge";
 import { CodeBlock } from "@/components/atrd/code-block";
 import { Button } from "@/components/ui/button";
+import { usePipelineData } from "@/lib/pipeline-data";
 
 export default function Home() {
+  const pipeline = usePipelineData();
+
   // Navigation Screens: 'welcome' | 'workspace' | 'submission'
   const [currentScreen, setCurrentScreen] = useState<"welcome" | "workspace" | "submission">("welcome");
   
@@ -62,6 +65,8 @@ export default function Home() {
   const [logLogs, setLogLogs] = useState<string[]>([
     "SYSTEM: Base model nvidia/NVIDIA-Nemotron-3-Nano-30B initialized.",
     "CUDA: Blackwell TF32 optimizations applied to RTX PRO 6000 memory bounds.",
+    `DATA: final_train_dataset.jsonl loaded (${pipeline.datasetSizeMB} MB, ${pipeline.trainExamples.toLocaleString()} examples).`,
+    `DATA: ${pipeline.failureModes.length} failure categories identified from baseline evaluation.`,
     "SYSTEM: Data pipelines loaded. Waiting for user action...",
   ]);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -156,18 +161,30 @@ export default function Home() {
     let generatedCount = 0;
     const interval = setInterval(() => {
       generatedCount += 1;
-      const sampleQuestion = [
-        `Evaluate ∫ x * cos(x) dx variations #${generatedCount}`,
-        `Find the local extrema of f(x) = x^3 - 3x + 2 variation #${generatedCount}`,
-        `Solve differential equation dy/dx - y = e^x variant #${generatedCount}`,
-      ][generatedCount % 3];
+      let sampleQuestion = "";
+      let sampleThinking = "";
+      let sampleAnswer = "";
+
+      if (generatedCount % 3 === 0) {
+        sampleQuestion = `Evaluate ∫ x * cos(x) dx variations #${generatedCount}`;
+        sampleThinking = `<<thinking>> Let u = x, dv = cos(x) dx. Then du = dx, v = sin(x). Integration by parts: x*sin(x) - ∫ sin(x) dx = x*sin(x) + cos(x). </thinking>>`;
+        sampleAnswer = `\\boxed{x \\sin(x) + \\cos(x) + C}`;
+      } else if (generatedCount % 3 === 1) {
+        sampleQuestion = `Find the local extrema of f(x) = x^3 - 3x + 2 variation #${generatedCount}`;
+        sampleThinking = `<<thinking>> First derivative f'(x) = 3x^2 - 3. Setting to zero: 3(x^2 - 1) = 0 => x = 1, -1. Second derivative f''(x) = 6x. At x=1, f''>0 (min). At x=-1, f''<0 (max). </thinking>>`;
+        sampleAnswer = `\\boxed{\\text{Max at } x=-1, \\text{Min at } x=1}`;
+      } else {
+        sampleQuestion = `Solve differential equation dy/dx - y = e^x variant #${generatedCount}`;
+        sampleThinking = `<<thinking>> This is a first-order linear ODE. Integrating factor I(x) = e^{∫ -1 dx} = e^{-x}. Multiply both sides: e^{-x} dy/dx - e^{-x} y = 1. Integrate: e^{-x}y = x + C. </thinking>>`;
+        sampleAnswer = `\\boxed{y = (x + C)e^x}`;
+      }
 
       setGeneratedSamples((prev) => [
         {
           id: generatedCount,
           question: sampleQuestion,
-          thinking: `<<thinking>> Let u = x, dv = cos(x) dx. Then du = dx, v = sin(x). Integration by parts: x*sin(x) - ∫ sin(x) dx = x*sin(x) + cos(x) + C. </thinking>>`,
-          answer: `\\boxed{x \\sin(x) + \\cos(x) + C}`,
+          thinking: sampleThinking,
+          answer: sampleAnswer,
           difficulty: 0.45 + (generatedCount * 0.05) % 0.4
         },
         ...prev
@@ -192,11 +209,27 @@ export default function Home() {
     addLog("JUDGE: Running composite quality score evaluation (weights: 0.35 Correctness, 0.25 Clarity, 0.20 Difficulty, 0.20 Format)...");
 
     let step = 0;
-    const total = judgeDataset.length;
+    
+    // If the dataset is empty, populate it from the generated samples or fallbacks
+    const datasetToFilter = judgeDataset.length > 0 ? judgeDataset : (
+      generatedSamples.length > 0 ? generatedSamples.map(s => ({...s, score: s.difficulty + 0.3, status: "pending"})) : [
+        { id: "1", question: "Evaluate ∫ x * cos(x) dx", score: 0.85, status: "pending" },
+        { id: "2", question: "Find the local extrema of f(x) = x^3 - 3x + 2", score: 0.92, status: "pending" },
+        { id: "3", question: "Solve differential equation dy/dx - y = e^x", score: 0.61, status: "pending" },
+        { id: "4", question: "Calculate the derivative of ln(x^2 + 1)", score: 0.77, status: "pending" },
+        { id: "5", question: "Find the integral of e^(2x) from 0 to 1", score: 0.45, status: "pending" }
+      ]
+    );
+
+    if (judgeDataset.length === 0) {
+      setJudgeDataset(datasetToFilter);
+    }
+
+    const total = datasetToFilter.length;
 
     const interval = setInterval(() => {
       if (step < total) {
-        const currentItem = judgeDataset[step];
+        const currentItem = datasetToFilter[step];
         const newStatus = currentItem.score >= 0.65 ? "passed" : "rejected";
 
         setJudgeDataset((prev) => {
@@ -215,7 +248,7 @@ export default function Home() {
       } else {
         clearInterval(interval);
         setIsFiltering(false);
-        addLog("JUDGE: Dataset filtering completed. Retained 4/6 problems (top 80% selection policy).");
+        addLog("JUDGE: Dataset filtering completed. Retained top 80% selection policy.");
       }
     }, 800);
   };
@@ -364,8 +397,8 @@ export default function Home() {
 
     // Determine problem complexity based on prompt content
     const lowerPrompt = customPrompt.toLowerCase();
-    const isHard = lowerPrompt.includes("xe^{-x}") || lowerPrompt.includes("improper") || lowerPrompt.includes("parts") || budgetValue > 5000;
-    const isMedium = lowerPrompt.includes("cos^2") || lowerPrompt.includes("integral") || lowerPrompt.includes("trig") || (budgetValue > 1000 && budgetValue <= 5000);
+    const isHard = lowerPrompt.includes("xe^{-x}") || lowerPrompt.includes("x*e^{-x}") || lowerPrompt.includes("improper") || lowerPrompt.includes("parts") || budgetValue > 5000;
+    const isMedium = !isHard && (lowerPrompt.includes("cos^2") || lowerPrompt.includes("integral") || lowerPrompt.includes("trig") || (budgetValue > 1000 && budgetValue <= 5000));
 
     const stepsToPlay: ReasoningStep[] = isHard ? [
       { id: "cs1", title: "Improper Integral Formulation", content: "Given: Find area under y = xe^{-x} for x >= 0.\nDifficulty classified as: Hard.\nEngaged max token budget: 7,680 tokens. Commencing structural parsing.", type: "thinking", durationMs: 1100, tokenCount: 120 },
@@ -774,12 +807,7 @@ export default function Home() {
                             We target these failure modes with synthetic correction traces generated via teacher models.
                           </p>
                           <div className="flex flex-col gap-2 pt-2">
-                            {[
-                              { mode: "Calculation Error", rate: "44%", count: 521, color: "bg-rose" },
-                              { mode: "Format Violation", rate: "18%", count: 210, color: "bg-amber" },
-                              { mode: "Reasoning Loop", rate: "12%", count: 142, color: "bg-nvidia" },
-                              { mode: "Early Termination", rate: "6%", count: 72, color: "bg-cyan" }
-                            ].map((item, idx) => (
+                            {pipeline.failureModes.map((item, idx) => (
                               <div key={idx} className="flex items-center justify-between text-xs font-mono bg-void/50 p-2.5 rounded border border-default">
                                 <div className="flex items-center gap-2">
                                   <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", item.color)} />
@@ -803,12 +831,12 @@ export default function Home() {
                           
                           <div className="grid grid-cols-2 gap-3 pt-4">
                             <div className="bg-void/50 p-4 rounded border border-default text-center">
-                              <span className="font-sans text-[10px] text-text-muted uppercase block">Baseline Acc</span>
-                              <span className="font-mono text-xl font-bold text-rose">59.8%</span>
+                              <span className="font-sans text-[10px] text-text-muted uppercase block">Dataset Size</span>
+                              <span className="font-mono text-xl font-bold text-cyan">{pipeline.datasetSizeMB} MB</span>
                             </div>
                             <div className="bg-void/50 p-4 rounded border border-default text-center">
-                              <span className="font-sans text-[10px] text-text-muted uppercase block">Boxed Format Compliance</span>
-                              <span className="font-mono text-xl font-bold text-amber">68.2%</span>
+                              <span className="font-sans text-[10px] text-text-muted uppercase block">Training Examples</span>
+                              <span className="font-mono text-xl font-bold text-nvidia">{pipeline.trainExamples.toLocaleString()}</span>
                             </div>
                           </div>
                           

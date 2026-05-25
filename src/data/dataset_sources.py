@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -150,6 +151,7 @@ def _load_hf_split(
     max_samples: int,
     source: str,
     cache_path: Path,
+    stream_timeout: int = 600,
 ) -> List[Dict[str, Any]]:
     """Stream samples from Hugging Face with caching."""
     try:
@@ -158,8 +160,8 @@ def _load_hf_split(
         raise ImportError("Install datasets: pip install datasets") from e
 
     logger.info(
-        "Streaming %s config=%s split=%s (max=%d)...",
-        dataset_name, config_name, split, max_samples,
+        "Streaming %s config=%s split=%s (max=%d, timeout=%ds)...",
+        dataset_name, config_name, split, max_samples, stream_timeout,
     )
     try:
         ds = load_dataset(dataset_name, config_name, split=split, streaming=True)
@@ -168,7 +170,14 @@ def _load_hf_split(
         return []
 
     normalized: List[Dict[str, Any]] = []
+    start = time.time()
     for row in ds:
+        if time.time() - start > stream_timeout:
+            logger.warning(
+                "HF streaming timed out after %ds for %s (got %d/%d)",
+                stream_timeout, dataset_name, len(normalized), max_samples,
+            )
+            break
         item = normalize_training_row(dict(row), source)
         if item:
             normalized.append(item)
@@ -177,7 +186,9 @@ def _load_hf_split(
 
     if normalized:
         _write_jsonl(cache_path, normalized)
-    logger.info("Loaded %d examples from Hugging Face %s", len(normalized), dataset_name)
+        logger.info("Cached %d examples from Hugging Face %s", len(normalized), dataset_name)
+    else:
+        logger.warning("Zero examples loaded from %s", dataset_name)
     return normalized
 
 

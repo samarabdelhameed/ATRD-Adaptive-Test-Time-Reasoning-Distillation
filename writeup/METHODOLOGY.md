@@ -6,7 +6,7 @@ This submission presents ATRD (Adaptive Test-Time Reasoning Distillation), a LoR
 
 The implementation is structured across four Kaggle notebooks covering data curation, SFT training, GRPO reinforcement learning, and budget-forced evaluation. All modules are implemented as reusable Python packages under `src/` with typed interfaces.
 
-**[REAL DATA: Insert final public and private accuracy after leaderboard results are available.]**
+**pending (run p4_eval)**
 
 ## 2. Introduction
 
@@ -56,7 +56,7 @@ The baseline evaluation runs the untrained Nemotron-3-Nano-30B on the public ben
 
 **Implementation:** `notebooks/01_data_generation.ipynb` (Cells 4–5), `src/evaluation/metric.py`
 
-**[REAL DATA: Insert baseline accuracy after running inference on benchmark.]**
+**pending (run p1_baseline)**
 
 ### 3.2 Failure Taxonomy
 
@@ -154,7 +154,7 @@ The Blackwell-optimized setup in `setup_blackwell_optimizations()` enables TF32 
 
 ### 4.3 Results
 
-**[REAL DATA: Insert SFT training loss curve and accuracy improvement over baseline after training runs complete. Expected metrics: validation loss convergence plot, accuracy delta from baseline.]**
+**pending (run p2_sft)**
 
 ## 5. GRPO + PRM Reinforcement Learning
 
@@ -215,7 +215,7 @@ Reward monotonicity is verified via `verify_monotonic_reward()` (window=10). KL 
 
 **Implementation:** `src/training/grpo_trainer.py` — `GRPOTrainerWrapper`, `KLMonitor`, `_compute_kl()`.
 
-**[REAL DATA: Insert GRPO reward progression curve and KL divergence plot after training runs.]**
+**pending (run p3_grpo)**
 
 ## 6. Budget Forcing
 
@@ -264,32 +264,32 @@ The corrective prompt includes: "The previous solution was incorrect. Double-che
 
 ### 6.5 Impact Analysis
 
-**[REAL DATA: Insert stratified evaluation results after running pipeline. Metrics should include: easy/medium/hard accuracy before and after budget forcing, token savings percentage, hard problem refinement success rate.]**
+**pending**
 
 ## 7. Ablation Studies
 
 | Component | Accuracy | Delta | p-value |
 |-----------|----------|-------|---------|
-| Baseline (Nemotron-3-Nano-30B) | [REAL DATA] | — | — |
-| +SFT (synthetic data + QLoRA) | [REAL DATA] | [REAL DATA] | [REAL DATA] |
-| +GRPO (PRM-guided RL) | [REAL DATA] | [REAL DATA] | [REAL DATA] |
-| +Budget Forcing (data quality) | [REAL DATA] | [REAL DATA] | [REAL DATA] |
+| Baseline (Nemotron-3-Nano-30B) | — (run p1_baseline) | | — | — |
+| +SFT (synthetic data + QLoRA) | — (run p2_sft) | | — (pending) | — (pending) |
+| +GRPO (PRM-guided RL) | — (run p3_grpo) | | — (pending) | — (pending) |
+| +Budget Forcing (data quality) | — (run p4_eval) | | — (pending) | — (pending) |
 
 **Ablation methodology:** Each component is added incrementally to isolate its contribution. Baseline is the untrained Nemotron-3-Nano-30B. SFT adds supervised fine-tuning on the mixed dataset. GRPO adds reinforcement learning on the SFT checkpoint. Budget forcing applies difficulty-aware compute allocation during data generation (affects SFT and GRPO phases).
 
-**[REAL DATA: Insert ablation waterfall chart and statistical significance analysis after all four configurations are evaluated.]**
+**pending**
 
 ## 8. Results
 
 | Metric | Value |
 |--------|-------|
-| Public test accuracy | [REAL DATA] |
-| Private test accuracy | [REAL DATA] |
-| Generalization gap | [REAL DATA] |
+| Public test accuracy | — (run p4_eval) | |
+| Private test accuracy | — (run p4_eval) | |
+| Generalization gap | — (run p4_eval) | |
 | LoRA rank | 32 |
 | Submission format | `submission.zip` (adapter_config.json + weights) |
 
-**[REAL DATA: Insert final leaderboard position and generalization analysis after competition results.]**
+**pending (run full pipeline + submit)**
 
 ## 9. Open Contribution Awards
 
@@ -299,7 +299,7 @@ The corrective prompt includes: "The previous solution was incorrect. Double-che
 
 **Key Innovation:** Generating training data from model-specific failure modes rather than generic problem augmentation. The pipeline evaluates the base model, extracts systematic error categories, and prompts frontier models to generate variations targeting each weakness. This ensures synthetic data addresses actual model limitations rather than adding noise.
 
-**Evidence:** Ablation study isolating the contribution of synthetic data versus training on OpenMathReasoning/OpenCodeReasoning alone. **[REAL DATA: Insert specific accuracy delta after all ablations complete.]**
+**Evidence:** Ablation study isolating the contribution of synthetic data versus training on OpenMathReasoning/OpenCodeReasoning alone. **—**
 
 ### Best RL Method
 
@@ -307,7 +307,7 @@ The corrective prompt includes: "The previous solution was incorrect. Double-che
 
 **Key Innovation:** Log-ratio step scoring between reference and current policy models provides implicit process rewards without training a separate PRM model. The default heuristic mode (regex-based) consumes zero additional GPU memory while still capturing reasoning quality signals. The optional log-ratio mode provides finer-grained scoring when GPU memory permits.
 
-**Evidence:** PRM correlation test validates that scored completions with correct answers receive higher PRM scores than incorrect ones. **[REAL DATA: Insert PRM correlation results and GRPO vs. SFT-only accuracy improvement.]**
+**Evidence:** PRM correlation test validates that scored completions with correct answers receive higher PRM scores than incorrect ones. **pending (run p3_grpo + evaluate)**
 
 ### Best Fine-Tuning Method
 
@@ -315,4 +315,4 @@ The corrective prompt includes: "The previous solution was incorrect. Double-che
 
 **Key Innovation:** Difficulty-aware token budget allocation during data generation saves compute on easy problems and applies multi-stage refinement to hard problems. This data-quality enhancement improves the training signal without modifying inference parameters.
 
-**Evidence:** Stratified evaluation shows accuracy improvement on hard problems after refinement, while easy problem accuracy is preserved. **[REAL DATA: Insert budget statistics and hard problem accuracy improvement.]**
+**Evidence:** Stratified evaluation shows accuracy improvement on hard problems after refinement, while easy problem accuracy is preserved. **pending (run p4_eval)**
