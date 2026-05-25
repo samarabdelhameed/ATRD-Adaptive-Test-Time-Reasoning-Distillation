@@ -50,17 +50,17 @@ export default function Home() {
 
   // Navigation Screens: 'welcome' | 'workspace' | 'submission'
   const [currentScreen, setCurrentScreen] = useState<"welcome" | "workspace" | "submission">("welcome");
-  
+
   // Workspace Active Phase
   const [activePhaseId, setActivePhaseId] = useState<string>("p1");
   const [activeFile, setActiveFile] = useState<string>("src/inference/budget_forcer.py");
-  
+
   // Phase 1 Data Curation sub-tabs: 'failure' | 'generator' | 'judge' | 'mixer'
   const [p1Tab, setP1Tab] = useState<"failure" | "generator" | "judge" | "mixer">("failure");
-  
+
   // Slide Budget value
   const [budgetValue, setBudgetValue] = useState<number>(4096);
-  
+
   // Telemetry Console Logs state
   const [logLogs, setLogLogs] = useState<string[]>([
     "SYSTEM: Base model nvidia/NVIDIA-Nemotron-3-Nano-30B initialized.",
@@ -106,7 +106,7 @@ export default function Home() {
   const [grpoKLHistory, setGrpoKLHistory] = useState<{ step: number; value: number }[]>([]);
 
   // Phase 4 Interactive Solver Sub-state
-  const [customPrompt, setCustomPrompt] = useState<string>("Solve the integral of x*e^{-x} for x >= 0");
+  const [customPrompt, setCustomPrompt] = useState<string>("Prove that 1+1=2");
   const [solverStatus, setSolverStatus] = useState<"idle" | "solving" | "done">("idle");
   const [solverSteps, setSolverSteps] = useState<ReasoningStep[]>([]);
   const [solverLatency, setSolverLatency] = useState<number>(0);
@@ -157,7 +157,7 @@ export default function Home() {
     if (isGenerating) return;
     setIsGenerating(true);
     addLog(`PIPELINE: Initiating targeted synthetic data generation for category [${genCategory}]...`);
-    
+
     let generatedCount = 0;
     const interval = setInterval(() => {
       generatedCount += 1;
@@ -209,10 +209,10 @@ export default function Home() {
     addLog("JUDGE: Running composite quality score evaluation (weights: 0.35 Correctness, 0.25 Clarity, 0.20 Difficulty, 0.20 Format)...");
 
     let step = 0;
-    
+
     // If the dataset is empty, populate it from the generated samples or fallbacks
     const datasetToFilter = judgeDataset.length > 0 ? judgeDataset : (
-      generatedSamples.length > 0 ? generatedSamples.map(s => ({...s, score: s.difficulty + 0.3, status: "pending"})) : [
+      generatedSamples.length > 0 ? generatedSamples.map(s => ({ ...s, score: s.difficulty + 0.3, status: "pending" })) : [
         { id: "1", question: "Evaluate ∫ x * cos(x) dx", score: 0.85, status: "pending" },
         { id: "2", question: "Find the local extrema of f(x) = x^3 - 3x + 2", score: 0.92, status: "pending" },
         { id: "3", question: "Solve differential equation dy/dx - y = e^x", score: 0.61, status: "pending" },
@@ -257,7 +257,7 @@ export default function Home() {
   const handleMixLeakageCheck = () => {
     addLog("MIXER: Enforcing 50/25/25 stratified ratio (Synthetic / OpenMath / OpenCode)...");
     addLog("MIXER: Scanning for 5-gram overlap leakage against benchmark evaluation suite...");
-    
+
     setMixerStats((prev) => ({
       ...prev,
       checkedLeakage: true,
@@ -270,7 +270,7 @@ export default function Home() {
         leakageResult: "clean"
       }));
       addLog("MIXER: Leakage analysis complete: 0 overlapping 5-grams detected. Dataset is clean!");
-      
+
       // Complete Phase 1 and Unlock Phase 2
       setPhases((prev) => {
         const next = [...prev];
@@ -294,7 +294,7 @@ export default function Home() {
 
     setTimeout(() => {
       addLog("TRAINING: Initiating AdamW optimizer loop. Starting Epoch 1 of 3...");
-      
+
       let step = 0;
       let currentLoss = 2.45;
       const totalSteps = 300;
@@ -308,7 +308,7 @@ export default function Home() {
         setSftStep(step);
         setSftLoss(currentLoss);
         setSftLossHistory((prev) => [...prev, { step, loss: currentLoss }]);
-        
+
         addLog(`SFT STEP: [Epoch ${Math.ceil(step / 100)}/3] Step ${step}/${totalSteps} | Training Loss: ${currentLoss.toFixed(4)} | LR: 2e-4`);
 
         if (step >= totalSteps) {
@@ -316,7 +316,7 @@ export default function Home() {
           setSftStatus("completed");
           addLog("TRAINING: Supervised Fine-Tuning complete. Convergence criteria met.");
           addLog("TRAINING: Checkpoint weights archived to 'checkpoints/sft/final_adapter/'.");
-          
+
           // Complete Phase 2 and Unlock Phase 3
           setPhases((prev) => {
             const next = [...prev];
@@ -384,60 +384,62 @@ export default function Home() {
     }, 1000);
   };
 
-  // Phase 4: Custom Solver Simulation with streaming steps
-  const handleSolvePrompt = () => {
+  // Phase 4: Real Solver — calls Python backend via API
+  const handleSolvePrompt = async () => {
     if (!customPrompt.trim() || solverStatus === "solving") return;
     setSolverStatus("solving");
     setSolverSteps([]);
     setSolverLatency(0);
     setSolverTokens(0);
-    
-    addLog(`INFERENCE: Running test inference on adaptive model for custom question: "${customPrompt}"`);
-    addLog(`BUDGET FORCING: Checking problem complexity constraints. Active compute budget is ${budgetValue} tokens.`);
 
-    // Determine problem complexity based on prompt content
-    const lowerPrompt = customPrompt.toLowerCase();
-    const isHard = lowerPrompt.includes("xe^{-x}") || lowerPrompt.includes("x*e^{-x}") || lowerPrompt.includes("improper") || lowerPrompt.includes("parts") || budgetValue > 5000;
-    const isMedium = !isHard && (lowerPrompt.includes("cos^2") || lowerPrompt.includes("integral") || lowerPrompt.includes("trig") || (budgetValue > 1000 && budgetValue <= 5000));
+    addLog(`INFERENCE: Calling real Python backend for: "${customPrompt}"`);
+    addLog(`BUDGET FORCING: Active compute budget is ${budgetValue} tokens.`);
 
-    const stepsToPlay: ReasoningStep[] = isHard ? [
-      { id: "cs1", title: "Improper Integral Formulation", content: "Given: Find area under y = xe^{-x} for x >= 0.\nDifficulty classified as: Hard.\nEngaged max token budget: 7,680 tokens. Commencing structural parsing.", type: "thinking", durationMs: 1100, tokenCount: 120 },
-      { id: "cs2", title: "Integration by Parts setup", content: "Formula: ∫ u dv = uv - ∫ v du.\nLet u = x => du = dx.\nLet dv = e^{-x} dx => v = -e^{-x}.", type: "assertion", durationMs: 900, tokenCount: 95 },
-      { id: "cs3", title: "Executing parts expansion", content: "∫ xe^{-x} dx = -xe^{-x} - ∫ -e^{-x} dx\n= -xe^{-x} - e^{-x} + C\n= -e^{-x}(x + 1) + C.", type: "assertion", durationMs: 1400, tokenCount: 180 },
-      { id: "cs4", title: "Intermediate Heuristic Verify", content: "Verification check:\nd/dx [-e^{-x}(x+1)] = e^{-x}(x+1) - e^{-x} = xe^{-x}.\nTrace correct. Moving to boundary limits.", type: "correction", durationMs: 800, tokenCount: 90 },
-      { id: "cs5", title: "Improper bounds resolution", content: "Limit at x->∞: lim_{x->∞} -(x+1)/e^x = 0 (via L'Hopital's rule).\nLimit at x=0: -e^0(0+1) = -1.\nArea: F(∞) - F(0) = 0 - (-1) = 1.", type: "conclusion", durationMs: 1200, tokenCount: 150 },
-      { id: "cs6", title: "Formatting answer environment", content: "Format rule verified. Wrapping result inside final boxed environment.\nResult: \\boxed{1}", type: "conclusion", durationMs: 400, tokenCount: 45 }
-    ] : isMedium ? [
-      { id: "cs1", title: "Identify Trigonometric Constraints", content: "Given: ∫ cos^2(x) dx from 0 to π.\nDifficulty classified as: Medium.\nCompute budget set to 4,096 tokens.", type: "thinking", durationMs: 800, tokenCount: 85 },
-      { id: "cs2", title: "Trig Identity Reduction", content: "Rewrite cos^2(x) as (1 + cos(2x)) / 2.\nIntegrand becomes: 1/2 + (1/2)*cos(2x).", type: "assertion", durationMs: 700, tokenCount: 70 },
-      { id: "cs3", title: "Integrating Terms", content: "∫ (1/2) dx = x/2\n∫ (1/2)*cos(2x) dx = (1/4)*sin(2x)\nAntiderivative F(x) = x/2 + sin(2x)/4.", type: "assertion", durationMs: 1100, tokenCount: 125 },
-      { id: "cs4", title: "Boundary Calculation", content: "F(π) - F(0) = [π/2 + sin(2π)/4] - [0 + sin(0)/4] = π/2 - 0 = π/2.", type: "conclusion", durationMs: 900, tokenCount: 110 },
-      { id: "cs5", title: "Formatting answer", content: "Boxed tags mapped.\nResult: \\boxed{\\frac{\\pi}{2}}", type: "conclusion", durationMs: 300, tokenCount: 30 }
-    ] : [
-      { id: "cs1", title: "Input Parsing", content: "Given: Solve 5x - 7 = 8.\nDifficulty: Easy. Compute budget set to 256 tokens.", type: "thinking", durationMs: 300, tokenCount: 40 },
-      { id: "cs2", title: "Algebraic Simplification", content: "Add 7 to both sides: 5x = 15.\nDivide both sides by 5: x = 3.", type: "assertion", durationMs: 400, tokenCount: 50 },
-      { id: "cs3", title: "Verification & Answer", content: "5(3) - 7 = 15 - 7 = 8. Match.\nResult: \\boxed{3}", type: "conclusion", durationMs: 200, tokenCount: 25 }
-    ];
+    try {
+      const response = await fetch("/api/solve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: customPrompt, budget: budgetValue }),
+      });
 
-    let stepIdx = 0;
-    const playNextStep = () => {
-      if (stepIdx < stepsToPlay.length) {
-        const nextStep = stepsToPlay[stepIdx];
-        setSolverSteps((prev) => [...prev, nextStep]);
-        setSolverLatency((prev) => prev + (nextStep.durationMs || 0));
-        setSolverTokens((prev) => prev + (nextStep.tokenCount || 0));
-        
-        addLog(`INFERENCE: RENDERED Step ${stepIdx + 1}: ${nextStep.title} (${nextStep.tokenCount} tokens)`);
-        
-        stepIdx += 1;
-        setTimeout(playNextStep, 800);
-      } else {
-        setSolverStatus("done");
-        addLog("INFERENCE: Solver task completed successfully. Boxed answer extracted.");
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || "API error");
       }
-    };
 
-    setTimeout(playNextStep, 600);
+      const data = await response.json();
+      const stepsFromBackend: ReasoningStep[] = data.steps ?? [];
+
+      addLog(`INFERENCE: Backend returned ${stepsFromBackend.length} reasoning steps. Reward: ${(data.reward ?? 0).toFixed(2)}/1.00`);
+
+      // Stream steps one by one for visual effect
+      let stepIdx = 0;
+      const playNextStep = () => {
+        if (stepIdx < stepsFromBackend.length) {
+          const nextStep = stepsFromBackend[stepIdx];
+          setSolverSteps((prev) => [...prev, nextStep]);
+          setSolverLatency((prev) => prev + (nextStep.durationMs || 600));
+          setSolverTokens((prev) => prev + (nextStep.tokenCount || 0));
+
+          addLog(`INFERENCE: Step ${stepIdx + 1}/${stepsFromBackend.length}: ${nextStep.title} (${nextStep.tokenCount} tokens)`);
+
+          stepIdx += 1;
+          setTimeout(playNextStep, 700);
+        } else {
+          setSolverStatus("done");
+          const reward = data.reward ?? 0;
+          const rewardLabel = reward >= 0.9 ? "EXCELLENT ✅" : reward >= 0.5 ? "GOOD ✓" : "PARTIAL";
+          addLog(`INFERENCE: Complete. Final answer: ${data.final_answer || "extracted"}. Reward: ${reward.toFixed(2)} — ${rewardLabel}`);
+        }
+      };
+
+      setTimeout(playNextStep, 400);
+
+    } catch (error: any) {
+      setSolverStatus("idle");
+      addLog(`ERROR: Backend call failed — ${error.message}. Check that Python environment is active.`);
+      console.error("Solver API error:", error);
+    }
   };
 
   // Submit / Packaging simulation
@@ -530,19 +532,19 @@ export default function Home() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-void text-text-primary overflow-x-hidden">
-      
+
       {/* ========================================================================= */}
       {/* ONBOARDING / WELCOME GATE */}
       {/* ========================================================================= */}
       {currentScreen === "welcome" && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
-          
+
           {/* Neon mesh background grid */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(118,185,0,0.12),transparent)] pointer-events-none" />
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
-          
+
           <div className="max-w-4xl text-center flex flex-col items-center gap-8 relative z-10 animate-fade-up">
-            
+
             {/* Brain/NVIDIA animated pulse header */}
             <div className="relative">
               <div className="absolute -inset-1 rounded-full bg-nvidia/20 blur-md animate-pulse" />
@@ -556,7 +558,7 @@ export default function Home() {
                 ATRD <span className="text-nvidia">Pipeline Workspace</span>
               </h1>
               <p className="font-sans text-sm md:text-base text-text-secondary max-w-2xl leading-relaxed">
-                Adaptive Test-Time Reasoning Distillation workspace. Fine-tuning <strong className="text-white">Nemotron-3-Nano-30B</strong> on 
+                Adaptive Test-Time Reasoning Distillation workspace. Fine-tuning <strong className="text-white">Nemotron-3-Nano-30B</strong> on
                 failure-grounded datasets with PRM-guided GRPO and adaptive budget-forcing.
               </p>
             </div>
@@ -591,10 +593,10 @@ export default function Home() {
               >
                 Enter Research Workspace <ArrowRight className="h-4 w-4" />
               </Button>
-              
-              <a 
-                href="https://github.com/samarabdelhameed/ATRD-Adaptive-Test-Time-Reasoning-Distillation" 
-                target="_blank" 
+
+              <a
+                href="https://github.com/samarabdelhameed/ATRD-Adaptive-Test-Time-Reasoning-Distillation"
+                target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-2 px-6 h-12 rounded-lg border border-default text-text-secondary hover:text-white hover:bg-surface/40 transition-all font-display text-sm font-semibold"
               >
@@ -621,11 +623,11 @@ export default function Home() {
       {/* ========================================================================= */}
       {currentScreen === "workspace" && (
         <div className="flex-1 flex flex-col">
-          
+
           {/* Header */}
           <header className="sticky top-0 z-20 h-16 w-full glass-panel border-b border-default flex items-center justify-between px-6 bg-void/80 backdrop-blur-md">
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 onClick={() => setCurrentScreen("welcome")}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-nvidia/10 border border-nvidia/30 text-nvidia hover:scale-105 cursor-pointer glow-nvidia transition-all"
               >
@@ -660,7 +662,7 @@ export default function Home() {
 
           {/* Core Panel Grid */}
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] divide-x divide-default">
-            
+
             {/* LEFT SIDEBAR: Steppers + File navigation */}
             <aside className="p-4 flex flex-col gap-6 bg-surface/20">
               <div className="flex flex-col gap-2">
@@ -686,7 +688,7 @@ export default function Home() {
                     <Folder className="h-4 w-4 text-nvidia shrink-0" />
                     <span className="font-bold">configs/</span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => {
                       setActiveFile("configs/base_lora.json");
                       addLog("FILE: Loaded lora configuration configs/base_lora.json");
@@ -704,7 +706,7 @@ export default function Home() {
                     <Folder className="h-4 w-4 text-nvidia shrink-0" />
                     <span className="font-bold">src/</span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => {
                       setActiveFile("src/inference/budget_forcer.py");
                       addLog("FILE: Loaded python inference module budget_forcer.py");
@@ -717,7 +719,7 @@ export default function Home() {
                     <FileCode className="h-3.5 w-3.5" />
                     <span className="truncate">budget_forcer.py</span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => {
                       setActiveFile("src/training/grpo_trainer.py");
                       addLog("FILE: Loaded python training module grpo_trainer.py");
@@ -734,7 +736,7 @@ export default function Home() {
               </div>
 
               {/* Back to welcome link */}
-              <button 
+              <button
                 onClick={() => setCurrentScreen("welcome")}
                 className="flex items-center gap-2 text-xs text-text-muted hover:text-nvidia font-display font-semibold transition-colors mt-auto pt-4 border-t border-default/40"
               >
@@ -744,7 +746,7 @@ export default function Home() {
 
             {/* CENTER CANVAS: Phase workflow views */}
             <main className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-64px)] scrollbar-thin">
-              
+
               {/* Phase Header */}
               <div className="flex items-center justify-between border-b border-default pb-4">
                 <div className="flex flex-col gap-1">
@@ -758,7 +760,7 @@ export default function Home() {
                     {phases.find((p) => p.id === activePhaseId)?.description}
                   </p>
                 </div>
-                
+
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-elevated border border-default text-[10px] text-text-secondary font-mono">
                   <Activity className="h-3.5 w-3.5 text-cyan shrink-0 animate-pulse" />
                   <span>ACTIVE PHASE ID: 0{activePhaseId.slice(1)}</span>
@@ -770,7 +772,7 @@ export default function Home() {
               {/* ========================================== */}
               {activePhaseId === "p1" && (
                 <div className="flex flex-col gap-6">
-                  
+
                   {/* Phase 1 sub-tab navigation */}
                   <div className="flex border-b border-default gap-4 text-xs font-display font-semibold uppercase">
                     {[
@@ -803,7 +805,7 @@ export default function Home() {
                             Nemotron Failure Mode Breakdown
                           </h3>
                           <p className="text-xs text-text-secondary leading-relaxed">
-                            Evaluating Nemotron-3-Nano-30B on the public reasoning benchmark shows major failure clusters. 
+                            Evaluating Nemotron-3-Nano-30B on the public reasoning benchmark shows major failure clusters.
                             We target these failure modes with synthetic correction traces generated via teacher models.
                           </p>
                           <div className="flex flex-col gap-2 pt-2">
@@ -828,7 +830,7 @@ export default function Home() {
                               Pre-training baseline evaluation results on representative math problems.
                             </p>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-3 pt-4">
                             <div className="bg-void/50 p-4 rounded border border-default text-center">
                               <span className="font-sans text-[10px] text-text-muted uppercase block">Dataset Size</span>
@@ -839,8 +841,8 @@ export default function Home() {
                               <span className="font-mono text-xl font-bold text-nvidia">{pipeline.trainExamples.toLocaleString()}</span>
                             </div>
                           </div>
-                          
-                          <Button 
+
+                          <Button
                             onClick={() => setP1Tab("generator")}
                             className="bg-nvidia text-text-inverse font-display text-xs font-semibold mt-4 h-9 border-0 w-full"
                           >
@@ -858,7 +860,7 @@ export default function Home() {
                           Targeted Synthetic Generator
                         </h3>
                         <p className="text-xs text-text-secondary leading-relaxed">
-                          For each failure mode, we query a frontier teacher model (DeepSeek-R1) to generate variations 
+                          For each failure mode, we query a frontier teacher model (DeepSeek-R1) to generate variations
                           with correct reasoning traces wrapped in Nemotron tokens.
                         </p>
                       </div>
@@ -924,7 +926,7 @@ export default function Home() {
                               </div>
                             ))}
                           </div>
-                          
+
                           <Button
                             onClick={() => setP1Tab("judge")}
                             className="bg-cyan hover:brightness-110 text-text-inverse font-display text-xs font-semibold self-end h-8 px-4 border-0 mt-2"
@@ -1005,7 +1007,7 @@ export default function Home() {
                           Mixing Ratios & Leakage Guard
                         </h3>
                         <p className="text-xs text-text-secondary leading-relaxed">
-                          Merge synthetic traces with open resources using a strict 50% Synthetic / 25% Math / 25% Code ratio. 
+                          Merge synthetic traces with open resources using a strict 50% Synthetic / 25% Math / 25% Code ratio.
                           Then verify zero 5-gram overlap leakage against test sets.
                         </p>
                       </div>
@@ -1053,7 +1055,7 @@ export default function Home() {
 
                         {mixerStats.checkedLeakage && mixerStats.leakageResult === "clean" && (
                           <div className="p-3 bg-nvidia/10 border border-nvidia/30 text-nvidia text-xs rounded font-mono">
-                            ✓ No leakage detected. Final training dataset structured successfully as 
+                            ✓ No leakage detected. Final training dataset structured successfully as
                             <strong> final_train_dataset.jsonl</strong>. Phase 1 complete.
                           </div>
                         )}
@@ -1070,7 +1072,7 @@ export default function Home() {
               {/* ========================================== */}
               {activePhaseId === "p2" && (
                 <div className="flex flex-col gap-6">
-                  
+
                   {/* SFT Panel */}
                   <div className="glass-panel p-5 rounded-lg flex flex-col gap-4 bg-surface/30">
                     <div className="flex flex-col gap-1">
@@ -1078,7 +1080,7 @@ export default function Home() {
                         Supervised Fine-Tuning execution
                       </h3>
                       <p className="text-xs text-text-secondary leading-relaxed">
-                        Attach a rank-32 adapter and train on format templates. Uses QLoRA 4-bit NF4 weights loading 
+                        Attach a rank-32 adapter and train on format templates. Uses QLoRA 4-bit NF4 weights loading
                         to fit RTX PRO 6000 memory specifications.
                       </p>
                     </div>
@@ -1118,7 +1120,7 @@ export default function Home() {
                   {/* SFT Telemetry logs & charts */}
                   {sftStatus !== "idle" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      
+
                       {/* Interactive Training stats */}
                       <div className="glass-panel p-5 rounded-lg flex flex-col gap-3 bg-surface/30 justify-between">
                         <div className="flex flex-col gap-1">
@@ -1126,7 +1128,7 @@ export default function Home() {
                             SFT Metrics Monitor
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-col gap-2 pt-2">
                           <div className="flex items-center justify-between text-xs font-mono bg-void/50 p-2.5 rounded border border-default">
                             <span className="text-text-secondary">Current Step</span>
@@ -1150,7 +1152,7 @@ export default function Home() {
                         <span className="font-display text-xs font-semibold tracking-wider text-text-secondary uppercase">
                           SFT Training Loss Curve
                         </span>
-                        
+
                         <div className="flex-1 w-full bg-void/60 rounded border border-default relative flex items-center justify-center p-4">
                           {sftLossHistory.length > 1 ? (
                             <svg className="w-full h-full min-h-[120px]" viewBox="0 0 300 100" preserveAspectRatio="none">
@@ -1158,7 +1160,7 @@ export default function Home() {
                               <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                               <line x1="0" y1="50" x2="300" y2="50" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                               <line x1="0" y1="80" x2="300" y2="80" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-                              
+
                               {/* Loss curve path */}
                               <path
                                 d={`M ${sftLossHistory.map((pt) => `${pt.step} ${Math.max(10, 90 - (pt.loss / 2.5) * 80)}`).join(" L ")}`}
@@ -1185,7 +1187,7 @@ export default function Home() {
               {/* ========================================== */}
               {activePhaseId === "p3" && (
                 <div className="flex flex-col gap-6">
-                  
+
                   {/* GRPO config */}
                   <div className="glass-panel p-5 rounded-lg flex flex-col gap-4 bg-surface/30">
                     <div className="flex flex-col gap-1">
@@ -1193,7 +1195,7 @@ export default function Home() {
                         Group Relative Policy Optimization (GRPO)
                       </h3>
                       <p className="text-xs text-text-secondary leading-relaxed">
-                        Tune the SFT adapter using GRPO with group size G=8. Rewarded for correct intermediate thinking 
+                        Tune the SFT adapter using GRPO with group size G=8. Rewarded for correct intermediate thinking
                         trace steps (monitored by PRM) and correct final boxed answers.
                       </p>
                     </div>
@@ -1233,13 +1235,13 @@ export default function Home() {
                   {/* GRPO Graphs and stats */}
                   {grpoStatus !== "idle" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      
+
                       {/* Metric cards */}
                       <div className="glass-panel p-5 rounded-lg flex flex-col gap-3 bg-surface/30 justify-between">
                         <span className="font-display text-xs font-semibold tracking-wider text-text-secondary uppercase">
                           GRPO Reinforcement Metrics
                         </span>
-                        
+
                         <div className="flex flex-col gap-2 pt-2">
                           <div className="flex items-center justify-between text-xs font-mono bg-void/50 p-2.5 rounded border border-default">
                             <span className="text-text-secondary">GRPO Iteration</span>
@@ -1267,14 +1269,14 @@ export default function Home() {
                         <span className="font-display text-xs font-semibold tracking-wider text-text-secondary uppercase">
                           Average Reward Convergence Curve
                         </span>
-                        
+
                         <div className="flex-1 w-full bg-void/60 rounded border border-default relative flex items-center justify-center p-4">
                           {grpoRewardHistory.length > 1 ? (
                             <svg className="w-full h-full min-h-[120px]" viewBox="0 0 100 100" preserveAspectRatio="none">
                               <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                               <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                               <line x1="0" y1="80" x2="100" y2="80" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-                              
+
                               <path
                                 d={`M ${grpoRewardHistory.map((pt) => `${pt.step} ${90 - pt.value * 80}`).join(" L ")}`}
                                 fill="none"
@@ -1300,7 +1302,7 @@ export default function Home() {
               {/* ========================================== */}
               {activePhaseId === "p4" && (
                 <div className="flex flex-col gap-6 animate-fade-up">
-                  
+
                   {/* Gauge & Heatmap metrics grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <BudgetGauge value={budgetValue} onChange={setBudgetValue} />
@@ -1319,13 +1321,13 @@ export default function Home() {
                         ATRD Interactive Solver Console
                       </h3>
                       <p className="text-xs text-text-secondary leading-relaxed">
-                        Enter a math problem or select a preset. The solver will simulate computing a step-by-step reasoning 
+                        Enter a math problem or select a preset. The solver will simulate computing a step-by-step reasoning
                         trace limited by the budget gauge value.
                       </p>
                     </div>
 
                     <div className="flex flex-col gap-3">
-                      
+
                       {/* Presets */}
                       <div className="flex flex-wrap gap-2 text-xs">
                         <button
@@ -1365,7 +1367,7 @@ export default function Home() {
                           placeholder="Type a math reasoning problem..."
                           className="flex-1 bg-void border border-default p-3 rounded text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-nvidia placeholder:text-text-muted"
                         />
-                        
+
                         <Button
                           onClick={handleSolvePrompt}
                           disabled={solverStatus === "solving" || !customPrompt.trim()}
@@ -1406,8 +1408,8 @@ export default function Home() {
                   <span className="font-display text-xs font-semibold text-text-secondary uppercase tracking-wider pl-1">
                     Implementation Code File Preview
                   </span>
-                  <CodeBlock 
-                    code={fileCodes[activeFile] || ""} 
+                  <CodeBlock
+                    code={fileCodes[activeFile] || ""}
                     filename={activeFile}
                     language={activeFile.endsWith(".json") ? "json" : "python"}
                   />
@@ -1423,7 +1425,7 @@ export default function Home() {
                       Telemetry logs stream
                     </span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       setLogLogs([]);
                       addLog("CONSOLE: Log console cleared.");
@@ -1523,9 +1525,9 @@ export default function Home() {
       {currentScreen === "submission" && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(118,185,0,0.1),transparent)] pointer-events-none" />
-          
+
           <div className="max-w-2xl w-full glass-panel p-8 rounded-xl flex flex-col gap-6 relative z-10 animate-fade-up bg-surface/50">
-            
+
             <div className="flex items-center gap-3 pb-4 border-b border-default">
               <UploadCloud className="h-6 w-6 text-nvidia shrink-0" />
               <div className="flex flex-col">
@@ -1542,7 +1544,7 @@ export default function Home() {
                     <span>{submissionStatus === "packaging" ? "Creating submission.zip archive..." : "Running official constraint checks..."}</span>
                     <span className="text-nvidia font-bold">{submissionProgress}%</span>
                   </div>
-                  
+
                   {/* Progress bar */}
                   <div className="h-2 w-full bg-void rounded-full overflow-hidden border border-default">
                     <div className="h-full bg-nvidia transition-all duration-300 ease-out" style={{ width: `${submissionProgress}%` }} />
@@ -1581,12 +1583,12 @@ export default function Home() {
               </div>
             ) : (
               <div className="flex flex-col gap-6 animate-fade-up">
-                
+
                 {/* Success Card */}
                 <div className="p-4 bg-nvidia/10 border border-nvidia/30 text-nvidia text-xs rounded-lg flex flex-col gap-3 font-mono">
                   <span className="text-sm font-bold block">✓ SUBMISSION PACKAGE GENERATED SUCCESSFULLY!</span>
                   <p className="text-text-secondary leading-relaxed">
-                    The package <strong>submission.zip</strong> is verified, compliant with all rank and quantization constraints, 
+                    The package <strong>submission.zip</strong> is verified, compliant with all rank and quantization constraints,
                     and is ready to be uploaded to the private evaluation backend.
                   </p>
                 </div>
