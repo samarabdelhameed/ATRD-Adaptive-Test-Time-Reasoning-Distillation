@@ -55,10 +55,16 @@ token.txt
 *.zip
 *.tar.gz
 *.tar.bz2
-data/*.json
 data/*.jsonl
+!data/custom_examples.jsonl
 data/*.csv
 data/*.parquet
+data/cache/
+
+# Allow small config files
+!data/failure_modes.json
+!data/p1_stats.json
+!data/README.md
 
 # === HuggingFace Cache ===
 .cache/
