@@ -4,6 +4,11 @@
 [![NVIDIA Nemotron Reasoning Challenge](https://img.shields.io/badge/Hackathon-NVIDIA_Nemotron-76B900?logo=nvidia)](https://www.nvidia.com)
 [![Kaggle Compatible](https://img.shields.io/badge/Kaggle-Ready-20BEFF?logo=kaggle)](https://kaggle.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-000000?logo=vercel)](https://atrd-pipeline.vercel.app)
+
+## 🌐 Live Demo
+> **[https://atrd-pipeline.vercel.app](https://atrd-pipeline.vercel.app)**
+> Interactive pipeline dashboard — explore all 4 training phases, live metrics, and the reasoning solver.
 
 **ATRD** is a state-of-the-art **LoRA-based fine-tuning pipeline** designed specifically for the **NVIDIA Nemotron Model Reasoning Challenge**. It bridges the gap between massive frontier models and efficient local models by distilling reasoning capabilities using a combination of **Failure-Grounded Synthetic Data**, **Process Reward Model (PRM) guided GRPO**, and **Dynamic Budget Forcing**.
 
