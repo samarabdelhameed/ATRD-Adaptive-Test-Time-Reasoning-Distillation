@@ -33,6 +33,7 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
       style={{ colorScheme: "dark" }}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-void text-text-primary">
         <TooltipProvider>{children}</TooltipProvider>

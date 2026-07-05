@@ -163,6 +163,7 @@ def run_p1_data_pipeline(
             hf_dataset=cfg["openmath_hf_dataset"],
             hf_split=cfg["openmath_hf_split"],
             max_samples=cfg["openmath_max_samples"],
+            stream_timeout=cfg.get("openmath_hf_stream_timeout", 600),
         )
     except Exception as e:
         logger.warning("OpenMath load failed: %s", e)
@@ -175,6 +176,7 @@ def run_p1_data_pipeline(
             hf_split=cfg.get("opencode_hf_split", "train"),
             hf_config=cfg.get("opencode_hf_config", "split_0"),
             max_samples=cfg["opencode_max_samples"],
+            stream_timeout=cfg.get("opencode_hf_stream_timeout", 600),
         )
     except Exception as e:
         logger.warning("OpenCode load failed: %s", e)

@@ -11,6 +11,38 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from src.evaluation.metric import load_benchmark_problems
 
+# ---------------------------------------------------------------------------
+# timeout guard for blocking HF calls
+# ---------------------------------------------------------------------------
+class _Timeout(Exception):
+    pass
+
+def _timed_call(fn, args, kwargs, timeout):
+    """Run *fn(*args, **kwargs)* in a thread and raise ``_Timeout`` if it
+    does not return within *timeout* seconds."""
+    import threading
+    import logging
+    logger = logging.getLogger(__name__)
+    result, exc = [], []
+    def worker():
+        logger.debug("worker: starting fn")
+        try:
+            result.append(fn(*args, **kwargs))
+        except BaseException as e:
+            exc.append(e)
+        logger.debug("worker: finished fn")
+    t = threading.Thread(target=worker, daemon=True)
+    logger.debug("worker: starting thread")
+    t.start()
+    logger.debug("worker: joining with timeout=%s", timeout)
+    t.join(timeout)
+    logger.debug("worker: join done, is_alive=%s", t.is_alive())
+    if t.is_alive():
+        raise _Timeout(f"timed out after {timeout}s")
+    if exc:
+        raise exc[0]
+    return result[0]
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,6 +105,7 @@ def load_openmath_reasoning(
     hf_split: str = "cot",
     max_samples: int = 2500,
     cache_path: str = "data/cache/openmath_reasoning.jsonl",
+    stream_timeout: int = 600,
 ) -> List[Dict[str, Any]]:
     """Load OpenMathReasoning from Kaggle dir, cache, or Hugging Face stream."""
     cache = Path(cache_path)
@@ -100,7 +133,8 @@ def load_openmath_reasoning(
             return normalized
 
     return _load_hf_split(
-        hf_dataset, "default", hf_split, max_samples, "open_math_reasoning", cache
+        hf_dataset, "default", hf_split, max_samples, "open_math_reasoning", cache,
+        stream_timeout=stream_timeout,
     )
 
 
@@ -111,6 +145,7 @@ def load_open_code_reasoning(
     hf_config: Optional[str] = None,
     max_samples: int = 2500,
     cache_path: str = "data/cache/open_code_reasoning.jsonl",
+    stream_timeout: int = 600,
 ) -> List[Dict[str, Any]]:
     """Load OpenCodeReasoning from Kaggle dir, cache, or Hugging Face stream."""
     cache = Path(cache_path)
@@ -140,7 +175,8 @@ def load_open_code_reasoning(
     config = hf_config or "split_0"
     split = hf_split if hf_split in ("split_0", "split_1") else config
     return _load_hf_split(
-        hf_dataset, config, split, max_samples, "open_code_reasoning", cache
+        hf_dataset, config, split, max_samples, "open_code_reasoning", cache,
+        stream_timeout=stream_timeout,
     )
 
 
@@ -154,42 +190,41 @@ def _load_hf_split(
     stream_timeout: int = 600,
 ) -> List[Dict[str, Any]]:
     """Stream samples from Hugging Face with caching."""
-    try:
-        from datasets import load_dataset
-    except ImportError as e:
-        raise ImportError("Install datasets: pip install datasets") from e
+    def _do_load() -> List[Dict[str, Any]]:
+        try:
+            from datasets import load_dataset
+        except ImportError as e:
+            raise ImportError("Install datasets: pip install datasets") from e
 
-    logger.info(
-        "Streaming %s config=%s split=%s (max=%d, timeout=%ds)...",
-        dataset_name, config_name, split, max_samples, stream_timeout,
-    )
-    try:
+        logger.info(
+            "Streaming %s config=%s split=%s (max=%d, timeout=%ds)...",
+            dataset_name, config_name, split, max_samples, stream_timeout,
+        )
         ds = load_dataset(dataset_name, config_name, split=split, streaming=True)
+
+        normalized: List[Dict[str, Any]] = []
+        for row in ds:
+            item = normalize_training_row(dict(row), source)
+            if item:
+                normalized.append(item)
+            if len(normalized) >= max_samples:
+                break
+
+        if normalized:
+            _write_jsonl(cache_path, normalized)
+            logger.info("Cached %d examples from Hugging Face %s", len(normalized), dataset_name)
+        else:
+            logger.warning("Zero examples loaded from %s", dataset_name)
+        return normalized
+
+    try:
+        return _timed_call(_do_load, (), {}, stream_timeout)
+    except _Timeout:
+        logger.warning("HF streaming timed out after %ds for %s", stream_timeout, dataset_name)
+        return []
     except Exception as e:
         logger.warning("HF load failed for %s: %s", dataset_name, e)
         return []
-
-    normalized: List[Dict[str, Any]] = []
-    start = time.time()
-    for row in ds:
-        if time.time() - start > stream_timeout:
-            logger.warning(
-                "HF streaming timed out after %ds for %s (got %d/%d)",
-                stream_timeout, dataset_name, len(normalized), max_samples,
-            )
-            break
-        item = normalize_training_row(dict(row), source)
-        if item:
-            normalized.append(item)
-        if len(normalized) >= max_samples:
-            break
-
-    if normalized:
-        _write_jsonl(cache_path, normalized)
-        logger.info("Cached %d examples from Hugging Face %s", len(normalized), dataset_name)
-    else:
-        logger.warning("Zero examples loaded from %s", dataset_name)
-    return normalized
 
 
 def bootstrap_gsm8k_benchmark(

@@ -1,12 +1,13 @@
 {
-  "raw_synthetic": 400,
-  "filtered": 320,
-  "deduplicated": 72,
+  "raw_synthetic": 200,
+  "filtered": 160,
+  "deduplicated": 81,
   "openmath": 2500,
-  "opencode": 0,
-  "final_total": 2572,
+  "opencode": 1,
+  "final_total": 832,
   "distribution": {
-    "open_math_reasoning": 2500,
-    "synthetic_filtered": 72
+    "synthetic_filtered": 81,
+    "open_math_reasoning": 750,
+    "open_code_reasoning": 1
   }
 }
