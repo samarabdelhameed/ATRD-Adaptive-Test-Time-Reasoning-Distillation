@@ -1,0 +1,17 @@
+results.zip
+submission.zip
+scratch/
+data/
+node_modules/
+checkpoints/
+logs/
+notebooks/
+tests/
+src/
+scripts/
+*.zip
+*.jsonl
+*.ipynb
+__pycache__/
+.pytest_cache/
+*.pyc
